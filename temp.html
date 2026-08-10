@@ -1,0 +1,448 @@
+       <div class="mt-6 bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm no-print"
+          x-data="{ isUploading: false }">
+          <h3 class="text-sm sm:text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
+            <span>📄 إرفاق سند صرف البنك (صورة أو PDF)</span>
+          </h3>
+
+          <template x-if="!selectedReceiptFile && !receiptUrl">
+            <div class="flex items-center justify-center w-full mb-4">
+              <label
+                class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-white hover:bg-slate-100 transition">
+                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                  <svg class="w-8 h-8 mb-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <p class="text-xs sm:text-sm text-slate-500 font-medium">اضغط هنا لاختيار سند الصرف البنكي</p>
+                  <p class="text-[10px] text-slate-400 mt-1">PDF, PNG, JPG (الحد الأقصى 10MB)</p>
+                </div>
+               
+                <input type="file" class="hidden" accept="image/*,application/pdf"
+                  @change="selectedReceiptFile = $event.target.files" />
+              </label>
+            </div>
+          </template>
+
+          <template x-if="selectedReceiptFile || receiptUrl">
+            <div
+              class="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm mb-4">
+              <div class="flex items-center gap-3 overflow-hidden">
+                <div class="p-2 bg-emerald-50 rounded-lg text-emerald-600 flex-shrink-0">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div class="truncate">
+                  <p class="text-xs sm:text-sm font-semibold text-slate-700 truncate"
+                    x-text="selectedReceiptFile ? selectedReceiptFile[0].name : 'تم حفظ السند السحابي بنجاح'"></p>
+                  <template x-if="receiptUrl">
+                    <a :href="receiptUrl" target="_blank"
+                      class="text-[10px] text-blue-600 font-medium underline flex items-center gap-0.5 mt-0.5">معاينة
+                      الملف المرفوع حالياً 🔗</a>
+                  </template>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-1.5 flex-shrink-0">
+                <label
+                  class="bg-amber-50 hover:bg-amber-100 text-amber-700 px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition">
+                  تعديل ✏️
+                  <input type="file" class="hidden" accept="image/*,application/pdf"
+                    @change="selectedReceiptFile = $event.target.files" />
+                </label>
+
+                <button type="button" @click="await deleteReceiptFully(selectedrequest)"
+                  class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+                  <span>حذف نهائي</span>
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+
+              </div>
+            </div>
+          </template>
+
+          <button type="button"
+            @click="saveReceiptOnly(selectedrequest)"
+            :disabled="isReceiptUploading || (!selectedReceiptFile && !receiptUrl)"
+            class="w-full bg-[#007B9D] hover:bg-[#006682] disabled:bg-slate-300 text-white font-bold py-2.5 px-4 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-sm cursor-pointer">
+            <template x-if="isReceiptUploading">
+
+              <svg class="animate-spin h-4 w-4 text-white" xmlns="http://w3.org" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+              </svg>
+            </template>
+            <span x-text="isReceiptUploading ? 'جاري رفع المرفق...' : 'حفظ سند البنك 💾'"></span>
+          </button>
+        </div>
+
+
+        <script src="https://unpkg.com/pdf-lib@1.4.0/dist/pdf-lib.min.js"></script>
+
+         <script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
+  <script src="https://unpkg.com/modern-screenshot"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.min.js"></script>
+
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+    integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+
+
+
+    <table class="w-full text-right">
+              <thead class="bg-gray-50 text-gray-500 border-b border-gray-200">
+                <tr>
+                  <th class="p-1.5 text-center w-8">#</th>
+                  <th class="p-1.5 w-20">التاريخ</th>
+                  <th class="p-1.5 w-20">حالة الطلب</th>
+                  <th class="p-1.5 w-50">المعتمد</th>
+                  <th class="p-1.5">الملاحظات</th>
+                </tr>
+              </thead>
+              <tbody class="text-gray-700 divide-y divide-gray-100">
+                <template x-for="(note, index) in selectedrequest?.timeline" :key="index + 1">
+                  <tr>
+                    <td class="p-1.5 text-center text-gray-400" x-text="index + 1"></td>
+                    <td class="p-1.5 font-medium"
+                      x-text="note.timestamp ? (note.timestamp.toDate ? note.timestamp.toDate() : new Date(note.timestamp)).toISOString().split('T')[0] : ''">
+                    </td>
+                    <td class="p-1.5 font-medium" x-text="note.action"></td>
+                    <td class="p-1.5 font-medium" x-text="note.userName"></td>
+                    <td class="p-1.5 text-red-600" x-text="note.note"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div x-show="currentView === 'preview_loan'" x-transition id="loan-preview-card"
+        class="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden print-container"
+        :class="currentView === 'preview_loan' ? 'print-active' : ''">
+
+        <div class="p-4 border-b border-gray-300 flex justify-between items-center bg-white">
+          <div class="text-right">
+            <h1 class="text-xl font-bold text-[#1d3557]">جمعية ابتسم</h1>
+            <p class="text-[10px] text-gray-500">لخدمات طب الأسنان التطوعية</p>
+          </div>
+          <div class="text-center">
+            <h2 class="text-xl font-bold text-gray-800 tracking-wide">استمارة الطلبات المالية</h2>
+          </div>
+          <img src="./src/images/ibtsmLogo.png" alt="شعار جمعية ابتسم"
+            class="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center border border-dashed border-gray-300 text-[10px] text-gray-400 font-bold select-none" />
+        </div>
+
+        <div class="bg-gray-50 p-3 flex justify-end items-center border-b border-gray-200 no-print">
+          <button @click="currentView = 'table'"
+            class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition">
+            ← عودة للجدول الرئيسي
+          </button>
+        </div>
+
+        <div class="p-4 md:p-6 space-y-6 bg-white">
+          <div class="border border-gray-300 rounded-xl overflow-hidden text-sm divide-y divide-gray-300">
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300 text">
+                نوع الطلب:</div>
+              <div class="p-3 col-span-2 md:col-span-3 text-gray-700"
+                x-text="{ loan: 'سلفة', petty: 'عهدة', purchase: 'شراء', general: 'عام' }[selectedrequest?.requestType] || selectedrequest?.requestType">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300">رقم
+                الطلب:</div>
+              <div class="p-3 col-span-2 md:col-span-3 font-mono text-gray-700" x-text="selectedrequest?.requestNumber">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300">تاريخ
+                الطلب:</div>
+              <div class="p-3 col-span-2 md:col-span-3 text-gray-700" x-text="selectedrequest?.requestDate">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300">صاحب
+                الطلب:</div>
+              <div class="p-3 col-span-2 md:col-span-3 font-medium text-gray-900"
+                x-text="selectedrequest?.applicantName"></div>
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300">
+                الوظيفة:</div>
+              <div class="p-3 col-span-2 md:col-span-3 text-gray-700" x-text="selectedrequest?.position"></div>
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300">
+                الطلب من:</div>
+              <div class="p-3 col-span-2 md:col-span-3 text-gray-700" x-text="selectedrequest?.selectedDept"></div>
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300">مبررات
+                الطلب:</div>
+              <div class="p-3 col-span-2 md:col-span-3 text-gray-700" x-text="selectedrequest?.justification"></div>
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300">مبلغ
+                الطلب:</div>
+              <div class="p-3 col-span-2 md:col-span-3 font-bold text-gray-800"
+                x-text="selectedrequest?.amount + 'ريال'"></div>
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300">هل
+                توجد سلف سابقة لم تسدد؟</div>
+              <div class="p-3 col-span-2 md:col-span-3 text-gray-700"
+                x-text="selectedrequest?.hasOutstandingLoans ? 'نعم' : 'لا'"></div>
+            </div>
+          </div>
+
+          <div class="text-[11px] text-gray-400 font-bold space-y-1">
+            <template x-if="selectedrequest?.approval.auditor === true">
+              <div>المدقق (معتمد)</div>
+            </template>
+            <template x-if="selectedrequest?.approval.accountant === true">
+              <div>المحاسب (معتمد)</div>
+            </template>
+          </div>
+
+          <div class="grid grid-cols-3 gap-4 pt-4 text-center text-xs border-t border-gray-200 avoid-break">
+
+            <div class="flex flex-col justify-between h-28 p-2 rounded-lg border border-gray-100 transition-colors"
+              :class="selectedrequest?.approval?.manager === true ? 'bg-white' : 'bg-gray-50/60'">
+              <p class="text-gray-500 font-semibold text-[11px]">موافقة إدارة الدعم المؤسسي</p>
+
+              <div class="py-1 flex items-center justify-center h-12 relative">
+                <template x-if="selectedrequest?.approval?.manager === true">
+                  <img src="src/images/manager.png" alt="توقيع المدير"
+                    class="h-full object-contain mix-blend-multiply brightness-110 contrast-125" />
+                </template>
+                <template x-if="!selectedrequest?.approval?.manager">
+                  <div class="text-gray-300 select-none text-[9px] italic">(بانتظار الاعتماد)</div>
+                </template>
+              </div>
+
+              <p class="font-bold text-gray-800 text-[11px]">أ. عبدالرحمن بن طلال الأحمدي</p>
+            </div>
+
+            <div class="flex flex-col justify-between h-28 p-2 rounded-lg border border-gray-100 transition-colors"
+              :class="selectedrequest?.approval?.ceo === true ? 'bg-white' : 'bg-gray-50/60'">
+              <p class="text-gray-500 font-semibold text-[11px]">موافقة الرئيس التنفيذي</p>
+
+              <div class="py-1 flex items-center justify-center h-12 relative">
+                <template x-if="selectedrequest?.approval?.ceo === true">
+                  <img src="src/images/ceo.png" alt="توقيع الرئيس التنفيذي"
+                    class="h-full object-contain mix-blend-multiply brightness-150 contrast-200 grayscale" />
+                </template>
+                <template x-if="!selectedrequest?.approval?.ceo">
+                  <div class="text-gray-300 select-none text-[9px] italic">(بانتظار الاعتماد)</div>
+                </template>
+              </div>
+
+              <p class="font-bold text-gray-800 text-[11px]">أ. عبدالعزيز بن صالح فتني</p>
+            </div>
+
+            <!-- كرت موافقة رئيس مجلس الإدارة (Chairman) -->
+            <div class="flex flex-col justify-between h-28 p-2 rounded-lg border border-gray-100 transition-colors"
+              :class="selectedrequest?.approval?.chairman === true ? 'bg-white' : 'bg-gray-50/60'">
+              <p class="text-gray-500 font-semibold text-[11px]">موافقة رئيس مجلس الإدارة</p>
+
+              <div class="py-1 flex items-center justify-center h-12 relative">
+                <template x-if="selectedrequest?.approval?.chairman === true">
+                  <img src="src/images/chairman.png" alt="توقيع رئيس مجلس الإدارة"
+                    class="h-full object-contain mix-blend-darken contrast-125" />
+                </template>
+                <template x-if="!selectedrequest?.approval?.chairman">
+                  <div class="text-gray-300 select-none text-[9px] italic">(بانتظار الاعتماد)</div>
+                </template>
+              </div>
+
+              <p class="font-bold text-gray-800 text-[11px]">د. أيمن بن محمد نوح</p>
+            </div>
+          </div>
+
+        </div>
+
+
+
+        <!-- ==================== قسم معاينة سند صرف البنك المعتمد ==================== -->
+        <div class="px-4 pb-2 avoid-break" x-show="selectedrequest?.receipt">
+          <div
+            class="flex items-center justify-between p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl shadow-sm">
+            <div class="flex items-center gap-2.5 text-right">
+              <div class="p-2 bg-emerald-100 text-emerald-800 rounded-lg flex-shrink-0">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p class="text-xs sm:text-sm font-bold text-emerald-900">مرفق سند البنك</p>
+                <p class="text-[10px] text-emerald-600 font-medium mt-0.5">تم توثيق وربط هذا الإيصال رسمياً بالطلب
+                  الحالي من قبل المدقق</p>
+              </div>
+            </div>
+
+            <!-- زر المعاينة والنقر المباشر -->
+            <a :href="selectedrequest?.receipt" target="_blank"
+              class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl border border-emerald-100 shadow-sm transition-all flex items-center gap-1 cursor-pointer">
+              <span>معاينة سند البنك 🔗</span>
+            </a>
+          </div>
+        </div>
+
+
+
+
+        <div class="p-4 avoid-break">
+          <p class="text-[11px] font-bold text-gray-600 mb-1">مسارات الطلب:</p>
+          <div class="overflow-hidden border border-gray-200 rounded-lg text-[11px]">
+
+            <table class="w-full text-right">
+              <thead class="bg-gray-50 text-gray-500 border-b border-gray-200">
+                <tr class="avoid-break">
+                  <th class="p-1.5 text-center w-8">#</th>
+                  <th class="p-1.5 w-20">التاريخ</th>
+                  <th class="p-1.5 w-20">حالة الطلب</th>
+                  <th class="p-1.5 w-50">المعتمد</th>
+                  <th class="p-1.5">الملاحظات</th>
+                </tr>
+              </thead>
+              <tbody class="text-gray-700 divide-y divide-gray-100">
+                <!-- حماية برمجية: لا يتم قراءة البيانات التكرارية إلا بعد التحقق من تحميل الطلب ومساراته بنجاح لمنع أخطاء الـ null -->
+                <template x-if="selectedrequest && selectedrequest.timeline">
+                  <!-- جعل الـ :key يعتمد على الـ index الصافي المستقر -->
+                  <template x-for="(note, index) in selectedrequest.timeline" :key="index">
+                    <tr>
+                      <!-- طباعة الرقم الترتيبي بشكل آمن ومتوافق مع جميع محركات المتصفحات -->
+                      <td class="p-1.5 text-center text-gray-400" x-text="Number(index) + 1"></td>
+
+                      <td class="p-1.5 font-medium"
+                        x-text="note.timestamp ? (note.timestamp.toDate ? note.timestamp.toDate() : new Date(note.timestamp)).toISOString().split('T')[0] : ''">
+                      </td>
+                      <td class="p-1.5 font-medium" x-text="note.action"></td>
+                      <td class="p-1.5 font-medium" x-text="note.userName"></td>
+                      <td class="p-1.5 text-red-600" x-text="note.note"></td>
+                    </tr>
+                  </template>
+                </template>
+              </tbody>
+            </table>
+
+
+
+
+
+
+
+
+          </div>
+        </div>
+
+        <div class="p-4 md:p-6 no-print">
+          <input type="text" x-model="note" placeholder="كتابة سبب ارجاع هذا الطلب"
+            class="w-full p-3 border border-gray-300 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-green-500 placeholder-gray-400">
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 pb-6 px-6 font-bold text-sm no-print" dir="rtl">
+          <button @click="approveLoanRequest(selectedrequest)" :disabled="isApproveSubmitting"
+            class="text-center text-xs sm:text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 py-3 rounded-xl disabled:opacity-40 transition-colors shadow-sm px-4 cursor-pointer flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+            <span x-text="isApproveSubmitting ? 'جاري الترحيل...' : 'ترحيل للمالية 🟢'"></span>
+          </button>
+
+
+
+
+          <div class="px-6 pb-4 no-print flex flex-col gap-2">
+            <!-- قمنا بربط خاصية disabled بحالة التحميل لمنع النقرات المتعددة أثناء توليد الملف -->
+            <button @click="
+                if (isSubmitting) return;
+                isSubmitting = true;
+                try {
+                  const url = await makeAndUploadDocPDF();
+                  if (url) {
+                    alert('تم توليد الـ PDF بنجاح وحفظه في Google Drive رسمياً! الرابط السحابي: ' + url);
+                  } else {
+                    alert('تنبيه: فشل توليد الملف أو حفظه، يرجى مراجعة لوحة التحكم (Console).');
+                  }
+                } catch(err) {
+                  console.error(err);
+                } finally {
+                  isSubmitting = false;
+                }" :disabled="isSubmitting"
+              class="w-full text-center text-xs sm:text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed py-3 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer">
+
+              <!-- عرض النص ديناميكياً بناءً على حالة الرفع الحالية -->
+              <span x-show="!isSubmitting">أرشفة وحفظ الاستمارة الحالية فوراً في Google Drive 💾</span>
+              <span x-show="isSubmitting" class="flex items-center gap-1.5">
+                <!-- سبيينر دوران بسيط يضفي طابعاً تفاعلياً ممتازاً أثناء التوليد السحابي -->
+                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://w3.org" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                  </path>
+                </svg>
+                جاري التوليد والرفع للدرايف...
+              </span>
+            </button>
+          </div>
+
+
+
+
+
+
+
+          <button @click="archiveLoanRequest(selectedrequest)" :disabled="isArchiveSubmitting"
+            class="text-center text-xs sm:text-sm font-bold text-white bg-amber-500 hover:bg-amber-600 active:bg-amber-700 py-3 rounded-xl disabled:opacity-40 transition-colors shadow-sm px-4 cursor-pointer flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+            </svg>
+            <span x-text="isReturnSubmitting ? 'جاري الأرشفة...' : 'أرشفة للطلب 🟡'"></span>
+          </button>
+          <button @click="returnForReceiptChange(selectedrequest)" :disabled="isReturnReceipt"
+            class="text-center text-xs sm:text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 py-3 rounded-xl disabled:opacity-40 transition-colors shadow-sm px-4 cursor-pointer flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.334 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
+            </svg>
+            <span x-text="isReturnReceipt ? 'جاري الإرجاع...' : 'إرجاع للمدقق 🔴'"></span>
+          </button>
+
+        </div>
+
+      </div>

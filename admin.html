@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>صفحة مسؤول النظام</title>
+
+  <link rel="icon" href="./src/images/ibtsmLogo.svg" type="image/svg+xml" />
+
+  <link rel="stylesheet" href="./dist/output.css" />
+
+  <script src="./node_modules/firebase/firebase-app-compat.js"></script>
+  <script src="./node_modules/firebase/firebase-auth-compat.js"></script>
+  <script src="./node_modules/firebase/firebase-firestore-compat.js"></script>
+
+  <script src="./src/js/firebase-config.js"></script>
+
+  <script src="./src/js/admin.js"></script>
+
+  <script defer src="./node_modules/alpinejs/dist/cdn.min.js"></script>
+
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&family=Noto+Nastaliq+Urdu:wght@400..700&family=Tajawal:wght@200;300;400;500;700;800;900&display=swap");
+
+    body {
+      font-family: "Tajawal", sans-serif;
+    }
+
+    [x-cloak] {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body class="bg-[#F8FAFC] text-slate-800" x-data="adminComponent" x-cloak x-show="!isCheckingAuth">
+  <header class="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <img src="./src/images/ibtsmLogo.png" alt="شعار جمعية ابتسم" class="h-14 w-auto object-contain" />
+        <div class="h-8 w-px bg-slate-200"></div>
+        <h1 class="text-xs md:text-lg lg:text-xl font-bold text-[#0A2540]">
+          صفحة مسؤول النظام
+        </h1>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <template x-if="userRoles.length > 1">
+          <a href="./dashboard.html"
+            class="bg-amber-50 active:bg-amber-100 text-amber-700 px-2.5 sm:px-4 py-2 rounded-xl text-[10px] sm:text-xs font-bold border border-amber-100 transition">صفحة
+            المهام
+            📋</a>
+        </template>
+        <button @click="handleLogout()"
+          class="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer">
+          خروج
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+
+    <div class="flex border-b border-slate-200 gap-4 overflow-x-auto whitespace-nowrap">
+      <button @click="currentTab = 'initiatives'"
+        :class="currentTab === 'initiatives' ? 'border-[#007B9D] text-[#007B9D] font-bold' : 'border-transparent text-slate-400'"
+        class="pb-3 px-1 border-b-2 text-sm cursor-pointer">
+        إدارة المبادرات
+      </button>
+      <button @click="currentTab = 'users'"
+        :class="currentTab === 'users' ? 'border-[#007B9D] text-[#007B9D] font-bold' : 'border-transparent text-slate-400'"
+        class="pb-3 px-1 border-b-2 text-sm cursor-pointer">
+        إدارة الصلاحيات
+      </button>
+    </div>
+
+    <div x-show="currentTab === 'initiatives'" class="space-y-5">
+      <div class="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm space-y-4">
+        <h2 class="text-sm font-bold text-[#0A2540]">إضافة مبادرة جديدة</h2>
+        <form @submit.prevent="addInitiative()"
+          class="flex flex-col gap-3.5 text-right text-xs font-bold text-slate-500">
+          <input type="text" x-model="newInitiative.name" placeholder="اسم المبادرة" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3 focus:outline-none focus:border-[#007B9D]" />
+          <select x-model="newInitiative.department" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3 focus:outline-none focus:border-[#007B9D]">
+            <option value="">اختر الإدارة المسؤولة...</option>
+            <template x-for="dept in departments">
+              <option :value="dept" x-text="dept"></option>
+            </template>
+          </select>
+          <input type="text" x-model="newInitiative.description" placeholder="وصف المبادرة" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3 focus:outline-none focus:border-[#007B9D]" />
+          <button type="submit" class="w-full bg-[#007B9D] text-white py-3 rounded-xl font-bold cursor-pointer">
+            حفظ المبادرة
+          </button>
+        </form>
+      </div>
+
+
+      <div class="space-y-3.5">
+        <template x-for="init in initiatives" :key="init.id">
+          <div class="bg-white rounded-xl border border-slate-100 p-4 flex flex-col gap-3 text-right text-xs"
+            x-data="{ isEditing: false, editName: init.name, editDept: init.department, editDesc: init.description }">
+            <div class="flex items-start justify-between border-b border-slate-50 pb-2 gap-2">
+              <div class="min-w-0 flex-1">
+                <template x-if="!isEditing">
+                  <h4 class="font-bold text-sm text-[#0A2540]" x-text="init.name"></h4>
+                </template>
+                <template x-if="isEditing"><input type="text" x-model="editName"
+                    class="w-full border p-1 rounded" /></template>
+              </div>
+              <span :class="init.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-slate-100 text-slate-500'"
+                class="px-2 py-0.5 rounded text-[10px] font-bold"
+                x-text="init.status === 'active' ? 'نشط' : 'معطل'"></span>
+            </div>
+            <div class="text-slate-500 space-y-1">
+              <p x-text="'الإدارة: ' + (isEditing ? '' : init.department)"></p>
+              <template x-if="isEditing">
+                <select x-model="editDept" class="border p-1 rounded w-full">
+                  <template x-for="dept in departments">
+                    <option :value="dept" x-text="dept"></option>
+                  </template>
+                </select>
+              </template>
+              <p class="text-slate-400" x-text="'الوصف: ' + (isEditing ? '' : init.description)"></p>
+              <template x-if="isEditing"><input type="text" x-model="editDesc"
+                  class="w-full border p-1 rounded" /></template>
+            </div>
+            <div class="flex justify-end gap-1.5 pt-2 border-t border-slate-50">
+              <template x-if="!isEditing">
+                <div class="flex gap-1.5">
+                  <button @click="isEditing = true" class="text-blue-600 bg-blue-50 px-2.5 py-1 rounded">
+                    تعديل
+                  </button>
+                  <button @click="toggleInitiativeStatus(init)" class="text-amber-600 bg-amber-50 px-2.5 py-1 rounded"
+                    x-text="init.status === 'active' ? 'تعطيل' : 'تنشيط'"></button>
+                  <button @click="deleteInitiative(init.id)" class="text-red-600 bg-red-50 px-2.5 py-1 rounded">
+                    حذف
+                  </button>
+                </div>
+              </template>
+              <template x-if="isEditing">
+                <div class="flex gap-1.5 w-full">
+                  <button
+                    @click="if(await updateInitiative(init.id, editName, editDept, editDesc)) { isEditing = false; }"
+                    class="flex-1 bg-green-600 text-white py-1 rounded font-bold">
+                    حفظ
+                  </button>
+                  <button @click="isEditing = false" class="flex-1 bg-slate-100 text-slate-500 py-1 rounded">
+                    إلغاء
+                  </button>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+
+    <div x-show="currentTab === 'users'" class="space-y-5" style="display: none">
+      <div class="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm space-y-4">
+        <h2 class="text-sm font-bold text-[#007B9D]">
+          إضافة مستخدم جديد
+        </h2>
+        <form @submit.prevent="addUser()" class="flex flex-col gap-3.5 text-right text-xs font-bold text-slate-500">
+          <input type="text" x-model="newUser.name" placeholder="اسم المستخدم" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3 focus:outline-none" />
+          <input type="text" x-model="newUser.position" placeholder="مسمى الوظيفة" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3 focus:outline-none" />
+          <input type="email" x-model="newUser.email" placeholder="البريد الإلكتروني" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3 text-left focus:outline-none"
+            dir="ltr" />
+          <select x-model="newUser.department" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3 focus:outline-none">
+            <option value="">اختر الإدارة...</option>
+            <template x-for="dept in departments">
+              <option :value="dept" x-text="dept"></option>
+            </template>
+          </select>
+
+          <div class="space-y-2 mt-2">
+            <span class="block text-sm font-bold text-[#007B9D] mb-1">تحديد الصلاحيات المتعددة:</span>
+            <div class="grid grid-cols-2 gap-2 text-[11px] font-medium">
+              <template x-for="(label, role) in availableRoles">
+                <label class="flex items-center gap-2 bg-[#F4F6F8] p-2 rounded-lg cursor-pointer">
+                  <input type="checkbox" :value="role" x-model="newUser.roles" class="w-3.5 h-3.5 text-[#007B9D]" />
+                  <span x-text="label"></span>
+                </label>
+              </template>
+            </div>
+          </div>
+          <button type="submit" class="w-full bg-[#007B9D] text-white py-3 rounded-xl font-bold cursor-pointer">
+            إضافة المستخدم وتفعيل الحساب
+          </button>
+        </form>
+      </div>
+
+
+      <div class="space-y-3.5">
+        <template x-for="user in users" :key="user.email">
+          <div class="bg-white rounded-xl border border-slate-100 p-4 flex flex-col gap-2.5 text-right text-xs"
+            x-data="{ isEditing: false, editName: user.name, editPosition: user.position, editDept: user.department, editRoles: [...user.roles] }">
+            <div class="flex items-start justify-between border-b border-slate-50 pb-2 gap-2">
+              <div class="min-w-0 flex-1">
+                <template x-if="!isEditing">
+                  <h4 class="font-bold text-sm text-[#0A2540]" x-text="user.name"></h4>
+                </template>
+                <template x-if="isEditing"><input type="text" x-model="editName"
+                    class="w-full border p-1 rounded" /></template>
+                <p class="text-[#007B9D] font-mono mt-0.5" dir="ltr" x-text="user.email"></p>
+              </div>
+              <span :class="user.isActive ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'"
+                class="px-2 py-0.5 rounded text-[10px] font-bold shrink-0"
+                x-text="user.isActive ? 'نشط' : 'معطل'"></span>
+            </div>
+            <div class="text-slate-500 space-y-1">
+              <p x-text="'الوظيفة: ' + (isEditing ? '' : user.position)"></p>
+              <template x-if="isEditing">
+                <input type="text" x-model="editPosition" class="border p-1 rounded w-full" />
+              </template>
+              <p x-text="'الإدارة: ' + (isEditing ? '' : user.department)"></p>
+              <template x-if="isEditing">
+                <select x-model="editDept" class="border p-1 rounded w-full">
+                  <template x-for="dept in departments">
+                    <option :value="dept" :selected="dept === editDept" x-text="dept"></option>
+                  </template>
+                </select>
+              </template>
+
+              <div class="flex flex-wrap gap-1 items-center mt-1">
+                <span>الصلاحيات:</span>
+                <template x-if="!isEditing">
+                  <div class="flex flex-wrap gap-1">
+                    <template x-for="r in user.roles"><span
+                        class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[10px]"
+                        x-text="availableRoles[r] || r"></span></template>
+                  </div>
+                </template>
+                <template x-if="isEditing">
+                  <div class="grid grid-cols-2 gap-1 border p-2 bg-slate-50 rounded w-full">
+                    <template x-for="(label, role) in availableRoles"><label class="flex items-center gap-1"><input
+                          type="checkbox" :value="role" x-model="editRoles" /><span
+                          x-text="label"></span></label></template>
+                  </div>
+                </template>
+              </div>
+            </div>
+            <div class="flex justify-end gap-1.5 pt-2 border-t border-slate-50">
+              <template x-if="!isEditing">
+                <div class="flex gap-1.5">
+                  <button @click="isEditing = true" class="text-blue-600 bg-blue-50 px-2.5 py-1 rounded">
+                    تعديل
+                  </button>
+                  <button @click="toggleUserStatus(user)" class="text-amber-600 bg-amber-50 px-2.5 py-1 rounded"
+                    x-text="user.isActive ? 'تعطيل' : 'تنشيط'"></button>
+                  <button @click="deleteUser(user.email)" class="text-red-600 bg-red-50 px-2.5 py-1 rounded">
+                    حذف
+                  </button>
+                </div>
+              </template>
+              <template x-if="isEditing">
+                <div class="flex gap-1.5 w-full">
+                  <button
+                    @click="if(await updateUser(user.email, editName, editPosition, editDept, editRoles)) { isEditing = false; }"
+                    class="flex-1 bg-green-600 text-white py-1 rounded font-bold">
+                    حفظ
+                  </button>
+                  <button @click="isEditing = false" class="flex-1 bg-slate-100 text-slate-500 py-1 rounded">
+                    إلغاء
+                  </button>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </main>
+</body>
+
+</html>

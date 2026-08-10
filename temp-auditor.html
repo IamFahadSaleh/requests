@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>لوحة اعتمادات المدقق الإداري</title>
+
+    <link rel="icon" href="./src/images/ibtsmLogo.svg" type="image/svg+xml" />
+
+    <!-- استدعاء ملف تايلوند المجمع محلياً -->
+    <link rel="stylesheet" href="./dist/output.css" />
+
+    <!-- استدعاء ملفات Firebase الأساسية محلياً -->
+    <script src="./node_modules/firebase/firebase-app-compat.js"></script>
+    <script src="./node_modules/firebase/firebase-auth-compat.js"></script>
+    <script src="./node_modules/firebase/firebase-firestore-compat.js"></script>
+
+    <!-- استدعاء ملف إعدادات الاتصال بـ Firebase -->
+    <script src="./src/js/firebase-config.js"></script>
+
+    <!-- استدعاء ملف الأكواد المستقل لصفحة المدقق المالي -->
+    <script src="./src/js/auditor.js"></script>
+
+    <script defer src="./node_modules/alpinejs/dist/cdn.min.js"></script>
+
+    <!-- خط تجول مع حماية x-cloak -->
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&family=Noto+Nastaliq+Urdu:wght@400..700&family=Tajawal:wght@200;300;400;500;700;800;900&display=swap");
+
+      body {
+        font-family: "Tajawal", sans-serif;
+      }
+      [x-cloak] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-[#F8FAFC] text-slate-800"
+    x-data="auditorComponent"
+    x-cloak
+    x-show="!isCheckingAuth"
+  >
+    <!-- هيدر علوي متجاوب بالكامل للتبديل السريع -->
+    <header
+      class="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-50"
+    >
+      <div
+        class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4"
+      >
+        <div class="flex items-center gap-2 sm:gap-4 min-w-0">
+          <img
+            src="./src/images/ibtsmLogo.png"
+            alt="شعار جمعية ابتسم"
+            class="h-10 sm:h-14 w-auto object-contain shrink-0"
+          />
+          <div class="h-6 w-px bg-slate-200 shrink-0"></div>
+          <div class="min-w-0">
+            <h1 class="text-sm sm:text-xl font-bold text-[#0A2540] truncate">
+              لوحة المدقق
+            </h1>
+            <p
+              class="text-[10px] sm:text-xs text-slate-400 font-medium truncate"
+              x-text="'مرحباً، ' + auditorName"
+            ></p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <a
+            href="./requests.html"
+            class="bg-green-50 active:bg-green-100 text-green-700 px-2.5 sm:px-4 py-2 rounded-xl text-[10px] sm:text-xs font-bold border border-green-100 transition whitespace-nowrap"
+            >الطلبات ✍️</a
+          >
+          <button
+            @click="handleLogout()"
+            class="bg-red-50 active:bg-red-100 text-red-600 px-2.5 sm:px-4 py-2 rounded-xl text-[10px] sm:text-xs font-bold transition cursor-pointer"
+          >
+            خروج
+          </button>
+        </div>
+      </div>
+    </header>
+
+        <main class="max-w-5xl mx-auto px-4 py-6 sm:py-10 space-y-6" x-data="{ currentSubTab: 'pending' }">
+      
+      <!-- شريط التنقل بين الطلبات المعلقة والمرجعة -->
+      <div class="flex border-b border-slate-200 gap-4 overflow-x-auto whitespace-nowrap mb-4">
+        <button
+          @click="currentSubTab = 'pending'"
+          :class="currentSubTab === 'pending' ? 'border-[#007B9D] text-[#007B9D] font-bold' : 'border-transparent text-slate-400'"
+          class="pb-3 px-1 border-b-2 text-xs sm:text-sm cursor-pointer flex items-center gap-1.5"
+        >
+          الطلبات الواردة والمعلقة
+          <span class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded-full font-bold" x-text="requests.length">0</span>
+        </button>
+        <button
+          @click="currentSubTab = 'returned'"
+          :class="currentSubTab === 'returned' ? 'border-[#007B9D] text-[#007B9D] font-bold' : 'border-transparent text-slate-400'"
+          class="pb-3 px-1 border-b-2 text-xs sm:text-sm cursor-pointer flex items-center gap-1.5"
+        >
+          الطلبات المرجعة للتعديل
+          <span class="bg-slate-100 text-slate-700 text-[10px] px-1.5 py-0.5 rounded-full font-bold" x-text="returnedRequests.length">0</span>
+        </button>
+      </div>
+
+      <!-- ================= التبويب الأول: الطلبات الواردة والمعلقة ================= -->
+      <div x-show="currentSubTab === 'pending'" class="space-y-5">
+        <!-- حالة عدم وجود معاملات معلقة -->
+        <template x-if="requests.length === 0">
+          <div class="bg-white rounded-2xl border border-slate-100 p-10 text-center text-slate-400 shadow-sm">
+            <p class="text-sm sm:text-base font-medium">لا توجد طلبات تحتاج لتدقيقك حالياً.</p>
+          </div>
+        </template>
+
+        <!-- شبكة المعاملات المعلقة للتدقيق -->
+        <div class="grid grid-cols-1 gap-5">
+          <template x-for="req in requests" :key="req.id">
+            <div
+              class="bg-white rounded-2xl border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.01)] p-5 sm:p-6 space-y-4"
+              x-data="{ isEditing: false, editTitle: req.title, editJustification: req.justification, editAmount: req.amount, actionNote: '' }"
+            >
+              <!-- ترويسة البطاقة -->
+              <div class="flex items-start justify-between gap-3 border-b border-slate-50 pb-3">
+                <div class="min-w-0">
+                  <h4 class="font-bold text-sm sm:text-base text-[#0A2540] truncate" x-text="req.applicantName"></h4>
+                  <p class="text-[10px] sm:text-xs text-slate-400 truncate mt-0.5" x-text="req.department"></p>
+                </div>
+                <span class="bg-amber-50 text-amber-600 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-black shrink-0">قيد المراجعة</span>
+              </div>
+
+
+
+
+              <!-- تفاصيل المعاملة -->
+              <div class="space-y-3 bg-[#F4F6F8]/50 p-4 rounded-xl border border-slate-100 text-right text-xs sm:text-sm">
+              
+
+                            <!-- تفاصيل وعرض حقول الطلب المرنة المطورة للعهدة والشراء -->
+            <div class="space-y-3 bg-[#F4F6F8]/50 p-4 rounded-xl border border-slate-100 text-right text-xs sm:text-sm">
+              <div class="grid grid-cols-2 gap-2 border-b border-slate-100/50 pb-2">
+                <div>
+                  <span class="block text-[10px] font-bold text-slate-400 mb-0.5">نوع المعاملة:</span>
+                  <p class="font-bold text-slate-700" x-text="req.requestType === 'purchase' ? 'طلب شراء إداري' : 'طلب عهدة مالية'"></p>
+                </div>
+                <div>
+                  <span class="block text-[10px] font-bold text-slate-400 mb-0.5">تاريخ التقديم:</span>
+                  <p class="font-medium text-slate-600 font-mono" x-text="req.requestDate"></p>
+                </div>
+              </div>
+
+              <!-- عنوان الطلب -->
+              <div>
+                <span class="block text-[10px] font-bold text-slate-400 mb-1">عنوان الطلب الإداري:</span>
+                <template x-if="!isEditing"><p class="font-bold text-[#0A2540]" x-text="req.title"></p></template>
+                <template x-if="isEditing"><input type="text" x-model="editTitle" class="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none" /></template>
+              </div>
+
+              <!-- المبررات والأسباب -->
+              <div>
+                <span class="block text-[10px] font-bold text-slate-400 mb-1">المبررات والأسباب لطلب الصرف:</span>
+                <template x-if="!isEditing"><p class="text-slate-600 leading-relaxed" x-text="req.justification"></p></template>
+                <template x-if="isEditing"><textarea x-model="editJustification" rows="2" class="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none resize-none"></textarea></template>
+              </div>
+
+              <!-- ================= [خاص بطلب الشراء]: عرض جدول الأصناف التفصيلي للمدقق ================= -->
+              <template x-if="req.requestType === 'purchase'">
+                <div class="pt-2 space-y-2 border-t border-slate-100">
+                  <span class="block text-[10px] font-bold text-[#007B9D]">جدول تفاصيل المبالغ الأصناف المرفوعة:</span>
+                  <div class="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm">
+                    <div class="block space-y-2 p-2">
+                      <template x-for="(item, idx) in req.items" :key="idx">
+                        <div class="flex items-center justify-between text-[11px] border-b border-slate-50 pb-1.5 last:border-0 last:pb-0">
+                          <span class="text-slate-600 font-medium" x-text="(idx + 1) + '. ' + item.detail"></span>
+                          <span class="font-bold text-[#0A2540]" x-text="parseFloat(item.amount).toFixed(2) + ' ر.س'"></span>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- ================= عرض الحقل المالي والارتباط والملفات ================= -->
+              <div class="flex items-center justify-between border-t border-slate-100/50 pt-2">
+                <div>
+                  <span class="block text-[10px] font-bold text-slate-400 mb-0.5 text-right">قيمة المبلغ الإجمالي:</span>
+                  
+                  <!-- حالة طلب العهدة المالي (الحالي) -->
+                  <template x-if="req.requestType !== 'purchase' && !isEditing">
+                    <p class="font-black text-[#007B9D] text-sm sm:text-base" x-text="parseFloat(req.amount).toLocaleString() + ' ر.س'"></p>
+                  </template>
+                  
+                  <!-- حالة طلب الشراء الإداري (المطور الجديد لمنع خطأ NaN) -->
+                  <template x-if="req.requestType === 'purchase' && !isEditing">
+                    <p class="font-black text-[#007B9D] text-sm sm:text-base" x-text="parseFloat(req.totalAmount).toLocaleString() + ' ر.س'"></p>
+                  </template>
+
+                  <!-- وضع التعديل النشط المالي للمدقق حياً -->
+                  <template x-if="isEditing">
+                    <input type="number" step="0.01" x-model="editAmount" class="w-24 bg-white border border-slate-200 rounded-lg p-1 text-center font-bold" />
+                  </template>
+                </div>
+                <div class="text-left">
+                  <span class="block text-[10px] font-bold text-slate-400 mb-0.5">الارتباط بمبادرة:</span>
+                  <p class="text-[#0A2540] font-semibold text-[11px] sm:text-xs" x-text="req.isLinkedToInitiative ? 'مبادرة: ' + req.initiativeName : 'لا يرتبط - ' + req.unlinkedReason"></p>
+                </div>
+              </div>
+
+              
+
+              <!-- ================= [خاص بطلب الشراء]: المرفقات البنكية وعروض الأسعار ================= -->
+              <template x-if="req.requestType === 'purchase'">
+                <div class="pt-2 border-t border-slate-100/60 space-y-2 text-right">
+                  <span class="block text-[10px] font-bold text-slate-400">البيانات المصرفية وعينات المرفقات:</span>
+                  <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-600 bg-white p-2.5 rounded-xl border border-slate-100">
+                    <p x-text="'المستفيد: ' + req.vendorName"></p>
+                    <p x-text="'المصرف: ' + req.bankName" class="text-left"></p>
+                    <p class="col-span-2 font-mono tracking-wide mt-0.5" dir="ltr" x-text="'IBAN: ' + req.ibanNumber"></p>
+                  </div>
+                  
+                  
+                  
+                  
+                  
+                  <!-- زر فك التشفير والمعاينة الفورية لعروض الأسعار الإلزامية مشفراً حياً -->
+                   <div class="flex flex-wrap gap-2 justify-start">
+                      <!-- 1. زر معاينة عروض الأسعار الإلزامية (يظهر دائماً) -->
+                      <button 
+                        type="button"
+                        @click="viewAttachedQuotes(req.attachedQuotesFile, 'عروض الأسعار / الاتفاقيات المعتمدة')"
+                        class="bg-blue-50 text-[#007B9D] border border-blue-100 font-bold text-[11px] px-3 py-1.5 rounded-lg shadow-sm cursor-pointer active:scale-95 transition"
+                      >
+                        عروض الأسعار 👁️
+                      </button>
+
+                      <!-- 2. زر معاينة السجل التجاري (يظهر فقط وحصرياً إذا قام الموظف برسمية رفعه) -->
+                      <template x-if="req.attachedRegistryFile">
+                        <button 
+                          type="button"
+                          @click="viewAttachedQuotes(req.attachedRegistryFile, 'السجل التجاري / شهادة التسجيل')"
+                          class="bg-slate-50 text-slate-700 border border-slate-200 font-bold text-[11px] px-3 py-1.5 rounded-lg shadow-sm cursor-pointer active:scale-95 transition"
+                        >
+                          السجل التجاري 👁️
+                        </button>
+                      </template>
+
+                      <!-- 3. زر معاينة صورة الآيبان IBAN (يظهر فقط وحصرياً إذا قام الموظف برسمية رفعه) -->
+                      <template x-if="req.attachedIbanFile">
+                        <button 
+                          type="button"
+                          @click="viewAttachedQuotes(req.attachedIbanFile, 'صورة وثيقة الحساب البنكي (IBAN)')"
+                          class="bg-slate-50 text-slate-700 border border-slate-200 font-bold text-[11px] px-3 py-1.5 rounded-lg shadow-sm cursor-pointer active:scale-95 transition"
+                        >
+                          صورة الآيبان 👁️
+                        </button>
+                      </template>
+                    </div>
+
+
+                  
+                  
+                  
+
+
+
+
+
+
+                </div>
+              </template>
+            </div>
+    <!-- ================= النافذة المنبثقة (Modal) لمعاينة عروض أسعار طلبات الشراء حياً للمدقق ================= -->
+    <div 
+      x-show="showQuotesModal" 
+      class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+      x-transition
+      style="display: none;"
+    >
+      <div class="bg-white rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl" @click.away="showQuotesModal = false">
+        <div class="p-4 border-b border-slate-100 flex items-center justify-between gap-4 bg-slate-50 rounded-t-2xl">
+          <button @click="showQuotesModal = false" class="bg-red-50 text-red-600 rounded-lg font-bold text-xs px-3 py-1.5 cursor-pointer">إغلاق المعاملة ✕</button>
+          <h3 class="text-xs sm:text-sm font-bold text-[#0A2540] text-right truncate" x-text="'معاينة المرفق لطلب: ' + quotesModalTitle"></h3>
+        </div>
+        <div class="p-4 overflow-y-auto flex-1 bg-slate-100/50 flex items-center justify-center min-h-[380px]">
+          <template x-if="isQuotesImage">
+            <img :src="quotesBase64Data" alt="مرفق عروض الأسعار" class="max-w-full max-h-[60vh] object-contain rounded-xl shadow-md border border-slate-200" />
+          </template>
+          <template x-if="!isQuotesImage">
+            <iframe :src="quotesBase64Data" class="w-full h-[60vh] rounded-xl border border-slate-200 shadow-sm" frameborder="0"></iframe>
+          </template>
+        </div>
+      </div>
+    </div>
+
+
+
+
+
+
+
+
+
+              </div>
+
+
+
+
+
+
+
+              <!-- حقل الملاحظات والأزرار الإدارية الثلاثة للمسؤول -->
+              <div class="space-y-3 pt-2">
+                <input type="text" x-model="actionNote" placeholder="اكتب ملاحظة أو سبب التعديل/الإرجاع هنا..." class="w-full bg-[#F4F6F8] border border-slate-200/50 rounded-xl p-3 text-xs sm:text-sm focus:outline-none focus:border-[#007B9D]" />
+                <div class="flex flex-col gap-2.5 pt-2 border-t border-slate-50">
+                  <div class="w-full">
+                    <template x-if="!isEditing"><button @click="isEditing = true" class="w-full text-center text-xs font-bold text-[#007B9D] bg-blue-50 py-2.5 rounded-lg">تعديل بيانات الاستمارة ⚙️</button></template>
+                    <template x-if="isEditing">
+                      <div class="flex gap-2 w-full">
+                        <button @click="if(await updateRequestData(req.id, editTitle, editJustification, editAmount)) { isEditing = false; }" class="flex-1 text-center text-xs font-bold text-white bg-green-600 py-2.5 rounded-lg">حفظ</button>
+                        <button @click="isEditing = false; editTitle = req.title; editJustification = req.justification; editAmount = req.amount;" class="flex-1 text-center text-xs font-bold text-slate-500 bg-slate-100 py-2.5 rounded-lg">إلغاء</button>
+                      </div>
+                    </template>
+                  </div>
+                  <div class="grid grid-cols-3 gap-2 w-full">
+                    <button @click="approveRequest(req, actionNote)" :disabled="isEditing" class="text-center text-xs font-bold text-white bg-[#007B9D] py-3 rounded-xl disabled:opacity-40">موافقة</button>
+                    <button @click="returnRequestToApplicant(req, actionNote)" :disabled="isEditing" class="text-center text-xs font-bold text-amber-700 bg-amber-50 py-3 rounded-xl border border-amber-100 disabled:opacity-40">إرجاع</button>
+                    <button @click="rejectAndTerminateRequest(req, actionNote)" :disabled="isEditing" class="text-center text-xs font-bold text-red-600 bg-red-50 py-3 rounded-xl border border-red-100 disabled:opacity-40">رفض نهائي</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- ================= التبويب الثاني: الطلبات المرجعة للتعديل ================= -->
+      <div x-show="currentSubTab === 'returned'" class="space-y-5" style="display: none;">
+        <!-- حالة عدم وجود معاملات مرجعة -->
+        <template x-if="returnedRequests.length === 0">
+          <div class="bg-white rounded-2xl border border-slate-100 p-10 text-center text-slate-400 shadow-sm">
+            <p class="text-sm sm:text-base font-medium">لا توجد طلبات تم إرجاعها للموظفين حالياً.</p>
+          </div>
+        </template>
+
+        <!-- قائمة البطاقات الخاصة بالطلبات المرجعة للموظفين -->
+        <div class="grid grid-cols-1 gap-4">
+          <template x-for="req in returnedRequests" :key="req.id">
+            <div class="bg-white rounded-xl border border-amber-100 shadow-sm p-5 space-y-3 text-right text-xs sm:text-sm">
+              <div class="flex items-center justify-between border-b border-slate-50 pb-2">
+                <div>
+                  <h4 class="font-bold text-[#0A2540]" x-text="req.applicantName"></h4>
+                  <p class="text-[10px] text-slate-400 mt-0.5" x-text="req.department"></p>
+                </div>
+                <span class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded text-[10px] font-bold">بانتظار تعديل الموظف</span>
+              </div>
+              <div class="text-slate-600 space-y-1.5 bg-[#F4F6F8]/30 p-3 rounded-lg">
+                <p x-text="'عنوان المعاملة: ' + req.title" class="font-semibold text-slate-800"></p>
+                <p x-text="'المبلغ: ' + parseFloat(req.amount).toLocaleString() + ' ر.س'" class="font-bold text-[#007B9D]"></p>
+                <p x-text="'سبب الإرجاع المدون: ' + req.timeline[req.timeline.length - 1].note" class="text-red-600 font-medium"></p>
+              </div>
+              <p class="text-[10px] text-slate-400 font-mono text-left" x-text="'تاريخ الإرجاع: ' + formatTimestamp(req.timeline[req.timeline.length - 1].timestamp)"></p>
+            </div>
+          </template>
+        </div>
+      </div>
+
+    </main>

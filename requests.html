@@ -1,0 +1,1119 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>صفحة الطلبات الإدارية</title>
+
+  <link rel="icon" href="./src/images/ibtsmLogo.svg" type="image/svg+xml" />
+
+  <link rel="stylesheet" href="./dist/output.css" />
+
+  <script src="./node_modules/firebase/firebase-app-compat.js"></script>
+  <script src="./node_modules/firebase/firebase-auth-compat.js"></script>
+  <script src="./node_modules/firebase/firebase-firestore-compat.js"></script>
+
+  <script src="./src/js/firebase-config.js"></script>
+  <script src="./src/js/idle-tracker.js"></script>
+
+  <script src="./src/js/requests.js"></script>
+
+  <script defer src="./node_modules/alpinejs/dist/cdn.min.js"></script>
+
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&family=Noto+Nastaliq+Urdu:wght@400..700&family=Tajawal:wght@200;300;400;500;700;800;900&display=swap");
+
+    body {
+      font-family: "Tajawal", sans-serif;
+    }
+
+    [x-cloak] {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body class="bg-[#F8FAFC] text-slate-800" x-data="requestsComponent" x-cloak x-show="!isCheckingAuth">
+
+  <header class="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-50">
+
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 sm:gap-4 min-w-0">
+        <img src="./src/images/ibtsmLogo.png" alt="شعار جمعية ابتسم"
+          class="h-10 sm:h-14 w-auto object-contain shrink-0" />
+        <div class="h-6 w-px bg-slate-200 shrink-0"></div>
+        <div class="min-w-0">
+          <h1 class="text-sm sm:text-lg font-bold text-[#0A2540] truncate" x-text="'مرحباً، ' + employeeName"></h1>
+          <p class="text-[10px] sm:text-xs text-[#007B9D] font-semibold mt-0.5 truncate" x-text="employeeDept"></p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
+
+        <template x-if="userRoles.length > 1">
+          <a href="./dashboard.html"
+            class="bg-amber-50 active:bg-amber-100 text-amber-700 px-2.5 sm:px-4 py-2 rounded-xl text-[10px] sm:text-xs font-bold border border-amber-100 transition">صفحة
+            المهام
+            📋</a>
+        </template>
+
+        <button @click="handleLogout()"
+          class="bg-red-50 active:bg-red-100 text-red-600 px-2.5 sm:px-4 py-2 rounded-xl text-[10px] sm:text-xs font-bold transition cursor-pointer">
+          خروج
+        </button>
+      </div>
+    </div>
+
+  </header>
+
+  <main class="max-w-3xl mx-auto px-4 py-6 sm:py-10 space-y-6 sm:space-y-4">
+
+    <div
+      class="bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm flex flex-row justify-between gap-1.5 overflow-x-auto no-scrollbar scroll-smooth whitespace-nowrap px-2">
+      <button @click="activeRequestType = 'loan'"
+        :class="activeRequestType === 'loan' ? 'bg-[#007B9D] text-white font-bold' : 'text-slate-500'"
+        class="py-2 px-4 rounded-xl text-xs sm:text-sm transition duration-150 cursor-pointer shrink-0">
+        طلب سلفة
+      </button>
+      <button @click="activeRequestType = 'petty'"
+        :class="activeRequestType === 'petty' ? 'bg-[#007B9D] text-white font-bold' : 'text-slate-500'"
+        class="py-2 px-4 rounded-xl text-xs sm:text-sm transition duration-150 cursor-pointer shrink-0">
+        طلب عهدة
+      </button>
+      <button @click="activeRequestType = 'purchase'"
+        :class="activeRequestType === 'purchase' ? 'bg-[#007B9D] text-white font-bold' : 'text-slate-500'"
+        class="py-2 px-4 rounded-xl text-xs sm:text-sm transition duration-150 cursor-pointer shrink-0">
+        طلب شراء
+      </button>
+      <button @click="activeRequestType = 'overtime'"
+        :class="activeRequestType === 'overtime' ? 'bg-[#007B9D] text-white font-bold' : 'text-slate-500'"
+        class="py-2 px-4 rounded-xl text-xs sm:text-sm transition duration-150 cursor-pointer shrink-0">
+        طلب عمل إضافي
+      </button>
+      <button @click="activeRequestType = 'general'"
+        :class="activeRequestType === 'general' ? 'bg-[#007B9D] text-white font-bold' : 'text-slate-500'"
+        class="py-2 px-4 rounded-xl text-xs sm:text-sm transition duration-150 cursor-pointer shrink-0">
+        طلب عام
+      </button>
+    </div>
+
+
+    <!-- ============== استمارة طلب سلفة =============== -->
+    <div x-show="activeRequestType === 'loan'"
+      class="bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.01)] p-5 sm:p-8 space-y-5">
+
+
+      <form @submit.prevent="submitLoanRequest()" class="space-y-4 sm:space-y-5">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">تاريخ الطلب</label>
+          <input type="date" x-model="loanForm.requestDate" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] text-right" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">الوظيفة</label>
+          <input type="text" :value="employeePosition" x-model="loanForm.selectedPosition"
+            placeholder="اكتب مسمى الوظيفة" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D]"
+            readonly />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">الإدارة</label>
+          <select x-model="loanForm.selectedDept" @change="handleDeptChange()" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D]">
+            <option value="">اختر الإدارة المعنية بالطلب</option>
+            <template x-for="dept in departments">
+              <option :value="dept" x-text="dept"></option>
+            </template>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">مبررات الطلب (السبب التفصيلي)</label>
+          <textarea x-model="loanForm.justification" placeholder="اكتب مبررات وأسباب طلب المبلغ..." required rows="3"
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] resize-none"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">قيمة السلفة المطلوبة</label>
+          <input type="number" step="0.01" x-model="loanForm.amount" placeholder="0.00" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 font-bold focus:outline-none focus:border-[#007B9D]" />
+        </div>
+
+        <div
+          class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#F4F6F8]/50 p-4 rounded-xl border border-slate-100">
+          <span class="text-xs sm:text-sm font-bold text-[#0A2540] text-right">هل توجد سلف سابقة غير مسددة؟</span>
+          <div class="flex items-center gap-6 justify-end" dir="ltr">
+            <label class="flex items-center gap-2 cursor-pointer font-medium text-sm text-slate-700">
+              <span>نعم</span>
+              <input type="radio" :value="true" x-model.boolean="loanForm.hasOutstandingLoans"
+                class="w-4 h-4 text-[#007B9D]" />
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer font-medium text-sm text-slate-700">
+              <span>لا</span>
+              <input type="radio" :value="false" x-model.boolean="loanForm.hasOutstandingLoans"
+                class="w-4 h-4 text-[#007B9D]" />
+            </label>
+          </div>
+        </div>
+
+        <div class="pt-4">
+          <button type="submit" :disabled="isSubmitting"
+            class="w-full flex items-center justify-center bg-[#4285F4] active:bg-[#3572E8] active:scale-[0.99] text-white font-bold py-3.5 sm:py-4 px-4 rounded-xl shadow-md transition-all duration-150 disabled:opacity-50 cursor-pointer min-h-[52px] sm:min-h-[56px] text-sm sm:text-base">
+            <span x-text="isSubmitting ? 'جاري إرسال الطلب للمدقق...' : 'إرسال طلب السلفة'"></span>
+          </button>
+        </div>
+      </form>
+
+
+    </div>
+
+
+    <!-- ============== استمارة طلب عهدة =============== -->
+    <div x-show="activeRequestType === 'petty'"
+      class="bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.01)] p-5 sm:p-8 space-y-5">
+
+      <form @submit.prevent="submitPettyRequest()" class="space-y-4 sm:space-y-5">
+
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">تاريخ الطلب</label>
+          <input type="date" x-model="pettyForm.requestDate" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] text-right" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">الوظيفة</label>
+          <input type="text" :value="employeePosition" x-model="pettyForm.selectedPosition"
+            placeholder="اكتب مسمى الوظيفة" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D]"
+            readonly />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">الإدارة</label>
+          <select x-model="pettyForm.selectedDept" @change="handleDeptChange()" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D]">
+            <option value="">اختر الإدارة المعنية بالطلب</option>
+            <template x-for="dept in departments">
+              <option :value="dept" x-text="dept"></option>
+            </template>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">مبررات الطلب (السبب التفصيلي)</label>
+          <textarea x-model="pettyForm.justification" placeholder="اكتب مبررات وأسباب طلب المبلغ..." required rows="3"
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] resize-none"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">قيمة العهدة المطلوبة</label>
+          <input type="number" step="0.01" x-model="pettyForm.amount" placeholder="0.00" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 font-bold focus:outline-none focus:border-[#007B9D]" />
+        </div>
+
+        <div
+          class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#F4F6F8]/50 p-4 rounded-xl border border-slate-100">
+          <span class="text-xs sm:text-sm font-bold text-[#0A2540] text-right">هل توجد عهد سابقة غير مغلقة؟</span>
+          <div class="flex items-center gap-6 justify-end" dir="ltr">
+            <label class="flex items-center gap-2 cursor-pointer font-medium text-sm text-slate-700">
+              <span>نعم</span>
+              <input type="radio" :value="true" x-model.boolean="pettyForm.hasOutstandingPetties"
+                class="w-4 h-4 text-[#007B9D]" />
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer font-medium text-sm text-slate-700">
+              <span>لا</span>
+              <input type="radio" :value="false" x-model.boolean="pettyForm.hasOutstandingPetties"
+                class="w-4 h-4 text-[#007B9D]" />
+            </label>
+          </div>
+        </div>
+
+        <div
+          class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#F4F6F8]/50 p-4 rounded-xl border border-slate-100">
+          <span class="text-xs sm:text-sm font-bold text-[#0A2540] text-right">هل العهدة مرتبطة بمبادرة؟</span>
+          <div class="flex items-center gap-6 justify-end" dir="ltr">
+            <label class="flex items-center gap-2 cursor-pointer font-medium text-sm text-slate-700">
+              <span>نعم</span>
+              <input type="radio" :value="true" x-model.boolean="pettyForm.isLinkedToInitiative"
+                class="w-4 h-4 text-[#007B9D]" />
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer font-medium text-sm text-slate-700">
+              <span>لا</span>
+              <input type="radio" :value="false" x-model.boolean="pettyForm.isLinkedToInitiative"
+                class="w-4 h-4 text-[#007B9D]" />
+            </label>
+          </div>
+        </div>
+
+        <div x-show="pettyForm.isLinkedToInitiative === true" x-transition class="flex items-center gap-2 w-full">
+          <select x-model="pettyForm.initiativeId" :required="pettyForm.isLinkedToInitiative === true"
+            @change="updatePettyTooltip()"
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-xs sm:text-sm text-slate-700 focus:outline-none focus:border-[#007B9D]">
+            <option value="">اختر المبادرة المستهدفة للطلب</option>
+            <template x-for="init in filteredInitiatives" :key="init.id">
+              <option :value="init.id" x-text="init.name"></option>
+            </template>
+          </select>
+
+          <div class="relative" x-data="{ showTooltip: false }">
+            <button type="button" @click="showTooltip = !showTooltip"
+              class="w-11 h-11 rounded-xl bg-blue-50 border border-slate-100 text-[#007B9D] font-bold text-base flex items-center justify-center cursor-help shrink-0 shadow-sm">
+              ؟
+            </button>
+            <div x-show="showTooltip" @click.away="showTooltip = false" x-transition
+              class="absolute bottom-13 left-0 w-60 p-3 bg-[#0A2540] text-white text-[11px] rounded-xl shadow-xl z-50 text-right leading-relaxed"
+              x-text="activeInitiativeDesc || 'يرجى تحديد المبادرة أولاً لرؤية وصفها.'"></div>
+          </div>
+        </div>
+
+        <div x-show="pettyForm.isLinkedToInitiative === false || pettyForm.isLinkedToInitiative === null" x-transition>
+          <input type="text" x-model="pettyForm.reasonNotLinkedToInitiative"
+            :required="pettyForm.isLinkedToInitiative === false" placeholder="اكتب سبب عدم الارتباط بمبادرة"
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D]" />
+        </div>
+
+        <div class="pt-4">
+          <button type="submit" :disabled="isSubmitting"
+            class="w-full flex items-center justify-center bg-[#4285F4] active:bg-[#3572E8] active:scale-[0.99] text-white font-bold py-3.5 sm:py-4 px-4 rounded-xl shadow-md transition-all duration-150 disabled:opacity-50 cursor-pointer min-h-[52px] sm:min-h-[56px] text-sm sm:text-base">
+            <span x-text="isSubmitting ? 'جاري إرسال الطلب للمدقق...' : 'إرسال طلب العهدة'"></span>
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- ============== استمارة طلب شراء =============== -->
+    <div x-show="activeRequestType === 'purchase'"
+      class="bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.01)] p-5 sm:p-8 space-y-5">
+
+
+      <form @submit.prevent="submitPurchaseRequest()" class="space-y-4 sm:space-y-5">
+
+        <!-- تاريخ الطلب -->
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">تاريخ الطلب</label>
+          <input type="date" x-model="purchaseForm.requestDate" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] text-right min-h-[52px]" />
+        </div>
+
+        <!-- إدارتك الحالية -->
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">الوظيفة</label>
+          <input type="text" :value="employeePosition" x-model="purchaseForm.selectedPosition"
+            placeholder="اكتب مسمى الوظيفة" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D]"
+            readonly />
+        </div>
+
+        <!-- الإدارة المعنية بالطلب -->
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">الإدارة</label>
+          <select x-model="purchaseForm.selectedDept" @change="handleDeptChange()" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] min-h-[52px] cursor-pointer">
+            <option value="">اختر الإدارة المعنية بالطلب</option>
+            <template x-for="dept in departments">
+              <option :value="dept" x-text="dept"></option>
+            </template>
+          </select>
+        </div>
+
+        <!-- مبررات الطلب -->
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">مبررات الطلب (السبب
+            التفصيلي)</label>
+          <textarea x-model="purchaseForm.justification" placeholder="اكتب مبررات وأسباب الشراء هنا..." required
+            rows="3"
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] resize-none"></textarea>
+        </div>
+
+
+        <div
+          class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#F4F6F8]/50 p-4 rounded-xl border border-slate-100">
+          <span class="text-xs sm:text-sm font-bold text-[#0A2540] text-right">هل طلب الشراء مرتبط
+            بمبادرة؟</span>
+          <div class="flex items-center gap-6 justify-end" dir="ltr">
+            <label
+              class="flex items-center gap-2 cursor-pointer font-medium text-sm text-slate-700 select-none"><span>نعم</span><input
+                type="radio" :value="true" x-model.boolean="purchaseForm.isLinkedToInitiative"
+                class="w-5 h-5 sm:w-4 sm:h-4 text-[#007B9D]" /></label>
+            <label
+              class="flex items-center gap-2 cursor-pointer font-medium text-sm text-slate-700 select-none"><span>لا</span><input
+                type="radio" :value="false" x-model.boolean="purchaseForm.isLinkedToInitiative"
+                class="w-5 h-5 sm:w-4 sm:h-4 text-[#007B9D]" /></label>
+          </div>
+        </div>
+
+
+        <div x-show="purchaseForm.isLinkedToInitiative === true" x-transition class="flex items-center gap-2 w-full">
+          <select x-model="purchaseForm.initiativeId" :required="purchaseForm.isLinkedToInitiative === true"
+            @change="updatePurchaseTooltip()"
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-xs sm:text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] min-h-[52px]">
+            <option value="">اختر المبادرة المستهدفة لطلب الشراء</option>
+            <template x-for="init in filteredInitiatives" :key="init.id">
+              <option :value="init.id" x-text="init.name"></option>
+            </template>
+          </select>
+
+          <div class="relative" x-data="{ showTooltip: false }">
+            <button type="button" @click="showTooltip = !showTooltip"
+              class="w-11 h-11 rounded-xl bg-blue-50 border border-slate-100 text-[#007B9D] font-bold text-base flex items-center justify-center cursor-help shrink-0 shadow-sm min-h-[52px]">
+              ؟
+            </button>
+            <div x-show="showTooltip" @click.away="showTooltip = false" x-transition
+              class="absolute bottom-13 left-0 w-60 p-3 bg-[#0A2540] text-white text-[11px] rounded-xl shadow-xl z-50 text-right leading-relaxed"
+              x-text="purchaseInitiativeDesc || 'يرجى تحديد المبادرة أولاً لرؤية وصفها الشامل قبل الشراء.'">
+            </div>
+          </div>
+        </div>
+
+        <!-- حقل سبب عدم الارتباط بمبادرة (الحالي لديك) -->
+        <div x-show="purchaseForm.isLinkedToInitiative === false" x-transition>
+          <input type="text" x-model="purchaseForm.reasonNotLinkedToInitiative"
+            :required="purchaseForm.isLinkedToInitiative === false" placeholder="اكتب سبب عدم الارتباط بمبادرة للجمعية"
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] min-h-[52px]" />
+        </div>
+
+        <div class="pt-2 space-y-4 border-t border-slate-100">
+          <h3 class="text-xs font-black text-[#007B9D] text-right">البيانات المالية والبنكية للجهة المستفيدة
+            (المورد):</h3>
+
+          <input type="text" x-model="purchaseForm.vendorName" placeholder="اسم الجهة المستفيدة (مثال: جمعية ابتسم)"
+            required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm focus:outline-none focus:border-[#007B9D] min-h-[52px]" />
+          <input type="text" x-model="purchaseForm.officialVendorName"
+            placeholder="مسمى الحساب البنكي الرسمي (مثال : جمعية ابتسم لخدمات طب الاسنان التطوعية)" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm focus:outline-none focus:border-[#007B9D] min-h-[52px]" />
+
+          <div class="relative flex items-center bg-[#F4F6F8] border border-slate-200/60 rounded-xl pl-4 min-h-[52px]"
+            dir="ltr">
+            <div
+              class="bg-slate-200 px-4 py-3.5 rounded-l-xl font-bold text-slate-700 border-r border-slate-300 min-h-[52px] flex items-center">
+              SA</div>
+            <input type="text" :value="purchaseForm.iban" @input="onIbanInput($event.target.value)"
+              placeholder="رقم الحساب البنكي الآيبان (22 رقماً)" required maxlength="22"
+              class="w-full bg-transparent p-3.5 text-sm focus:outline-none font-mono font-bold tracking-wider" />
+          </div>
+
+          <div
+            class="w-full bg-blue-50/50 border border-blue-100 text-slate-700 font-bold rounded-xl p-3.5 text-xs sm:text-sm text-right flex flex-col sm:flex-row justify-between sm:items-center gap-1">
+            <span class="text-slate-400 text-[10px] sm:text-xs">اسم المصرف أو البنك المستهدف:</span>
+            <span x-text="purchaseForm.bankName" class="text-[#007B9D] truncate"></span>
+          </div>
+        </div>
+
+        <div class="pt-4 space-y-3" x-data="{ tempDetail: '', tempAmount: '' }">
+          <span class="block text-xs font-bold text-slate-500 text-right">جدول تفاصيل الأصناف والمبالغ المراد
+            شراؤها:</span>
+
+          <div class="flex flex-col sm:flex-row gap-2 w-full">
+            <input type="text" x-model="tempDetail" placeholder="تفاصيل المبلغ أو بيان الصرف"
+              class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-xs focus:outline-none min-h-[48px]" />
+            <div class="flex gap-2 w-full sm:w-auto">
+              <input type="number" step="0.01" x-model="tempAmount" placeholder="المبلغ"
+                class="flex-1 sm:w-28 bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3 text-xs text-center font-bold focus:outline-none min-h-[48px]" />
+              <button type="button"
+                @click="if(tempDetail.trim() && tempAmount) { addPurchaseItem(tempDetail, tempAmount); tempDetail=''; tempAmount=''; }"
+                class="bg-[#007B9D] text-white px-6 rounded-xl font-bold text-xs cursor-pointer min-h-[48px] shadow-sm active:scale-95 transition">إضافة
+              </button>
+            </div>
+          </div>
+
+          <div class="block sm:hidden space-y-2.5">
+            <template x-for="(item, index) in purchaseForm.items" :key="index">
+              <div
+                class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center justify-between gap-3 text-right">
+                <div class="min-w-0">
+                  <p class="font-bold text-slate-800 text-xs truncate" x-text="(index + 1) + '. ' + item.detail"></p>
+                  <p class="font-black text-[#007B9D] text-xs mt-1"
+                    x-text="parseFloat(item.amount).toFixed(2) + ' ر.س'"></p>
+                </div>
+                <div class="p-2 text-center flex items-center justify-center gap-1.5">
+                  <button type="button"
+                    @click="let res = updatePurchaseItem(index); tempDetail = res.detail; tempAmount = res.amount;"
+                    class="bg-yellow-50 text-yellow-600 font-bold text-[11px] px-3 py-2 rounded-lg shrink-0">تعديل
+                  </button>
+                  <button type="button" @click="deletePurchaseItem(index)"
+                    class="bg-red-50 text-red-600 font-bold text-[11px] px-3 py-2 rounded-lg shrink-0">حذف
+                  </button>
+                </div>
+              </div>
+            </template>
+
+            <div
+              class="bg-blue-50/50 p-3.5 rounded-xl border border-blue-100/60 flex items-center justify-between font-black text-xs">
+              <span class="text-slate-500">المجموع الكلي للمشتريات:</span>
+              <span class="text-[#007B9D] text-sm font-black" x-text="calculatePurchaseTotal() + ' ر.س'"></span>
+            </div>
+          </div>
+
+          <div class="hidden sm:block border border-slate-100 rounded-xl overflow-hidden shadow-sm bg-white">
+            <table class="w-full text-right text-xs">
+              <thead class="bg-slate-50 font-bold text-slate-500 border-b border-slate-100">
+                <tr>
+                  <th class="p-3 text-center w-10">م</th>
+                  <th class="p-3">تفاصيل المبلغ أو بيان الصرف</th>
+                  <th class="p-3 text-center w-28">المبلغ</th>
+                  <th class="p-3 text-center w-24">الإجراء</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(item, index) in purchaseForm.items" :key="index">
+                  <tr class="border-b border-slate-50 hover:bg-slate-50/50">
+                    <td class="p-3 text-center font-mono text-slate-400" x-text="index + 1"></td>
+                    <td class="p-3 font-medium text-slate-700" x-text="item.detail"></td>
+                    <td class="p-3 text-center font-bold text-[#0A2540]"
+                      x-text="parseFloat(item.amount).toFixed(2) + ' ر.س'"></td>
+                    <td class="p-3 text-center flex items-center justify-center gap-1.5">
+                      <button type="button"
+                        @click="let res = updatePurchaseItem(index); tempDetail = res.detail; tempAmount = res.amount;"
+                        class="bg-yellow-50 text-yellow-600 px-2 py-1 rounded font-bold text-[10px] cursor-pointer">تعديل
+                      </button>
+                      <button type="button" @click="deletePurchaseItem(index)"
+                        class="bg-red-50 text-red-600 px-2 py-1 rounded font-bold text-[10px] cursor-pointer">حذف
+                      </button>
+                    </td>
+                  </tr>
+                </template>
+                <tr class="bg-slate-50/80 font-black text-slate-800">
+                  <td colspan="2" class="p-3 text-left">المجموع الكلي:</td>
+                  <td class="p-3 text-center text-[#007B9D] text-sm border-t border-slate-200"
+                    x-text="calculatePurchaseTotal() + ' ر.س'"></td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="pt-3 space-y-3 text-right"
+          x-data="{ uploadingStatus: { quotes: false, registry: false, ibanImg: false } }">
+          <span class="block text-xs font-bold text-slate-500">المرفقات الإلزامية والاختيارية:</span>
+
+          <!--  عروض الأسعار (إلزامي) -->
+          <div
+            class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-100 gap-2">
+            <span class="text-xs font-bold text-slate-700">عروض الأسعار / الاتفاقيات المعتمدة <span
+                class="text-red-500">*</span></span>
+
+            <div class="flex flex-wrap items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+              <!-- حالة تم إرفاق ملف بنجاح -->
+              <template x-if="purchaseFiles.quotes && !uploadingStatus.quotes">
+                <div class="flex items-center gap-2 bg-white border border-slate-200/80 rounded-lg p-1.5 px-2.5">
+                  <!-- رابط لاستعراض ومشاهدة الملف المرفوع في نافذة جديدة -->
+                  <a :href="purchaseFiles.quotes.url" target="_blank"
+                    class="text-[11px] font-bold text-green-600 hover:underline truncate max-w-[120px] sm:max-w-[180px]"
+                    x-text="'تم إرفاق: ' + purchaseFiles.quotes.name"></a>
+
+                  <button type="button"
+                    @click="if(confirm('هل أنت متأكد من حذف هذا الملف نهائياً؟')) { deleteFileFromGoogleDrive(purchaseFiles.quotes.url); purchaseFiles.quotes = null; document.getElementById('file_quotes').value = ''; }"
+                    class="text-red-500 hover:text-red-700 font-bold text-xs p-1 cursor-pointer transition">✕</button>
+                </div>
+              </template>
+
+              <template x-if="!purchaseFiles.quotes && !uploadingStatus.quotes">
+                <span class="text-[11px] text-slate-400" x-text="'لم يتم إرفاق ملف'"></span>
+              </template>
+
+              <template x-if="uploadingStatus.quotes">
+                <span class="text-[11px] text-blue-600 font-bold animate-pulse">جاري تحميل الملف... ⏳</span>
+              </template>
+
+              <input type="file" id="file_quotes" accept="image/*, application/pdf" :disabled="uploadingStatus.quotes"
+                @change="async (e) => { 
+          if (e.target.files && e.target.files.length > 0) {
+            uploadingStatus.quotes = true;
+            let fileObj = e.target.files[0];
+            let fileName = fileObj.name;
+            let oldUrl = purchaseFiles.quotes ? purchaseFiles.quotes.url : null;
+            let uploadedUrl = await updateFileInGoogleDrive(oldUrl, fileObj);
+            if (uploadedUrl) {
+              purchaseFiles.quotes = { name: fileName, url: uploadedUrl };
+            }
+            uploadingStatus.quotes = false;
+          }
+        }" class="hidden" />
+              <label for="file_quotes"
+                :class="uploadingStatus.quotes ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'"
+                class="text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm active:scale-95 transition whitespace-nowrap">
+                <span
+                  x-text="uploadingStatus.quotes ? 'جاري الرفع... 🔄' : (purchaseFiles.quotes ? 'تعديل الملف 🔄' : 'أرفق الملف 📁')"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- السجل التجاري (اختياري) -->
+          <div
+            class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-100 gap-2">
+            <span class="text-xs text-slate-400 font-medium">السجل التجاري / شهادة التسجيل</span>
+
+            <div class="flex flex-wrap items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+              <template x-if="purchaseFiles.registry && !uploadingStatus.registry">
+                <div class="flex items-center gap-2 bg-white border border-slate-200/80 rounded-lg p-1.5 px-2.5">
+                  <a :href="purchaseFiles.registry.url" target="_blank"
+                    class="text-[11px] text-green-600 hover:underline truncate max-w-[120px]"
+                    x-text="'تم إرفاق: ' + purchaseFiles.registry.name"></a>
+                  <button type="button"
+                    @click="if(confirm('هل أنت متأكد من حذف هذا الملف نهائياً؟')) { deleteFileFromGoogleDrive(purchaseFiles.registry.url); purchaseFiles.registry = null; document.getElementById('file_registry').value = ''; }"
+                    class="text-red-500 hover:text-red-700 font-bold text-xs p-1 cursor-pointer transition">✕</button>
+                </div>
+              </template>
+              <template x-if="!purchaseFiles.registry && !uploadingStatus.registry">
+                <span class="text-[11px] text-slate-400" x-text="'لم يتم إرفاق ملف'"></span>
+              </template>
+              <template x-if="uploadingStatus.registry">
+                <span class="text-[11px] text-blue-600 font-bold animate-pulse">جاري تحميل الملف... ⏳</span>
+              </template>
+
+              <input type="file" id="file_registry" accept="image/*, application/pdf"
+                :disabled="uploadingStatus.registry" @change="async (e) => { 
+          if (e.target.files && e.target.files.length > 0) {
+            uploadingStatus.registry = true;
+            let fileObj = e.target.files[0];
+            let fileName = fileObj.name;
+            let oldUrl = purchaseFiles.registry ? purchaseFiles.registry.url : null;           
+            let uploadedUrl = await updateFileInGoogleDrive(oldUrl, fileObj);
+            if (uploadedUrl) {
+              purchaseFiles.registry = { name: fileName, url: uploadedUrl };
+            }
+            uploadingStatus.registry = false;
+          }
+        }" class="hidden" />
+              <label for="file_registry"
+                :class="uploadingStatus.registry ? 'bg-slate-400 cursor-not-allowed' : 'bg-[#8C9BB4] hover:bg-slate-500 cursor-pointer'"
+                class="text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm active:scale-95 transition whitespace-nowrap">
+                <span
+                  x-text="uploadingStatus.registry ? 'جاري الرفع... 🔄' : (purchaseFiles.registry ? 'تعديل الملف 🔄' : 'أرفق الملف 📁')"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- صورة الآيبان (اختياري) -->
+          <div
+            class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-100 gap-2">
+            <span class="text-xs text-slate-400 font-medium">صورة من الآيبان (IBAN)</span>
+
+            <div class="flex flex-wrap items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+              <template x-if="purchaseFiles.ibanImg && !uploadingStatus.ibanImg">
+                <div class="flex items-center gap-2 bg-white border border-slate-200/80 rounded-lg p-1.5 px-2.5">
+                  <a :href="purchaseFiles.ibanImg.url" target="_blank"
+                    class="text-[11px] text-green-600 hover:underline truncate max-w-[120px]"
+                    x-text="'تم إرفاق: ' + purchaseFiles.ibanImg.name"></a>
+                  <button type="button"
+                    @click="if(confirm('هل أنت متأكد من حذف هذا الملف نهائياً؟')) { deleteFileFromGoogleDrive(purchaseFiles.ibanImg.url); purchaseFiles.ibanImg = null; document.getElementById('file_iban').value = ''; }"
+                    class="text-red-500 hover:text-red-700 font-bold text-xs p-1 cursor-pointer transition">✕</button>
+                </div>
+              </template>
+              <template x-if="!purchaseFiles.ibanImg && !uploadingStatus.ibanImg">
+                <span class="text-[11px] text-slate-400" x-text="'لم يتم إرفاق ملف'"></span>
+              </template>
+              <template x-if="uploadingStatus.ibanImg">
+                <span class="text-[11px] text-blue-600 font-bold animate-pulse">جاري تحميل الملف... ⏳</span>
+              </template>
+
+              <input type="file" id="file_iban" accept="image/*, application/pdf" :disabled="uploadingStatus.ibanImg"
+                @change="async (e) => { 
+          if (e.target.files && e.target.files.length > 0) {
+            uploadingStatus.ibanImg = true;
+            let fileObj = e.target.files[0];
+            let fileName = fileObj.name;
+            let oldUrl = purchaseFiles.ibanImg ? purchaseFiles.ibanImg.url : null;
+            
+            let uploadedUrl = await updateFileInGoogleDrive(oldUrl, fileObj);
+            if (uploadedUrl) {
+              purchaseFiles.ibanImg = { name: fileName, url: uploadedUrl };
+            }
+            uploadingStatus.ibanImg = false;
+          }
+        }" class="hidden" />
+              <label for="file_iban"
+                :class="uploadingStatus.ibanImg ? 'bg-slate-400 cursor-not-allowed' : 'bg-[#8C9BB4] hover:bg-slate-500 cursor-pointer'"
+                class="text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm active:scale-95 transition whitespace-nowrap">
+                <span
+                  x-text="uploadingStatus.ibanImg ? 'جاري الرفع... 🔄' : (purchaseFiles.ibanImg ? 'تعديل الملف 🔄' : 'أرفق الملف 📁')"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-4">
+          <button type="submit" :disabled="isSubmitting || purchaseForm.items.length === 0 || !purchaseFiles.quotes"
+            class="w-full flex items-center justify-center bg-[#4285F4] hover:bg-[#3572E8] text-white font-bold py-4 rounded-xl shadow-md transition disabled:opacity-50 cursor-pointer text-sm sm:text-base min-h-[54px] sm:min-h-[58px] active:scale-[0.99]">
+            <span x-text="isSubmitting ? 'جاري معالجة الملفات وإرسال طلب الشراء...' : 'إرسال طلب الشراء '"></span>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ============== استمارة طلب عمل اضافي =============== -->
+    <div x-show="activeRequestType === 'overtime'"
+      class="bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.01)] p-5 sm:p-8 space-y-5">
+
+
+      <form @submit.prevent="submitOvertimeRequest()" class="space-y-4 sm:space-y-5">
+
+        <!-- تاريخ الطلب -->
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">تاريخ الطلب</label>
+          <input type="date" x-model="overtimeForm.requestDate" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] text-right min-h-[52px]" />
+        </div>
+
+        <!-- إدارتك الحالية -->
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">الوظيفة</label>
+          <input type="text" :value="employeePosition" x-model="overtimeForm.selectedPosition"
+            placeholder="اكتب مسمى الوظيفة" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D]"
+            readonly />
+        </div>
+
+        <!-- الإدارة المعنية بالطلب -->
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">الإدارة</label>
+          <select x-model="overtimeForm.selectedDept" @change="handleDeptChange()" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] min-h-[52px] cursor-pointer">
+            <option value="">اختر الإدارة المعنية بالطلب</option>
+            <template x-for="dept in departments">
+              <option :value="dept" x-text="dept"></option>
+            </template>
+          </select>
+        </div>
+
+        <!-- مبررات الطلب -->
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">مبررات الطلب (السبب
+            التفصيلي)</label>
+          <textarea x-model="overtimeForm.justification" placeholder="اكتب مبررات وأسباب العمل الاضافي هنا..." required
+            rows="3"
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] resize-none"></textarea>
+        </div>
+
+        <div
+          class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#F4F6F8]/50 p-4 rounded-xl border border-slate-100">
+          <span class="text-xs sm:text-sm font-bold text-[#0A2540] text-right">هل طلب العمل الاضافي مرتبط
+            بمبادرة؟</span>
+          <div class="flex items-center gap-6 justify-end" dir="ltr">
+            <label
+              class="flex items-center gap-2 cursor-pointer font-medium text-sm text-slate-700 select-none"><span>نعم</span><input
+                type="radio" :value="true" x-model.boolean="overtimeForm.isLinkedToInitiative"
+                class="w-5 h-5 sm:w-4 sm:h-4 text-[#007B9D]" /></label>
+            <label
+              class="flex items-center gap-2 cursor-pointer font-medium text-sm text-slate-700 select-none"><span>لا</span><input
+                type="radio" :value="false" x-model.boolean="overtimeForm.isLinkedToInitiative"
+                class="w-5 h-5 sm:w-4 sm:h-4 text-[#007B9D]" /></label>
+          </div>
+        </div>
+
+        <div x-show="overtimeForm.isLinkedToInitiative === true" x-transition class="flex items-center gap-2 w-full">
+          <select x-model="overtimeForm.initiativeId" :required="overtimeForm.isLinkedToInitiative === true"
+            @change="updateOvertimeTooltip()"
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-xs sm:text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] min-h-[52px]">
+            <option value="">اختر المبادرة المستهدفة لطلب العمل الاضافي</option>
+            <template x-for="init in filteredInitiatives" :key="init.id">
+              <option :value="init.id" x-text="init.name"></option>
+            </template>
+          </select>
+
+          <div class="relative" x-data="{ showTooltip: false }">
+            <button type="button" @click="showTooltip = !showTooltip"
+              class="w-11 h-11 rounded-xl bg-blue-50 border border-slate-100 text-[#007B9D] font-bold text-base flex items-center justify-center cursor-help shrink-0 shadow-sm min-h-[52px]">
+              ؟
+            </button>
+            <div x-show="showTooltip" @click.away="showTooltip = false" x-transition
+              class="absolute bottom-13 left-0 w-60 p-3 bg-[#0A2540] text-white text-[11px] rounded-xl shadow-xl z-50 text-right leading-relaxed"
+              x-text="overtimeInitiativeDesc || 'يرجى تحديد المبادرة أولاً لرؤية وصفها الشامل.'">
+            </div>
+          </div>
+        </div>
+
+
+        <div x-show="overtimeForm.isLinkedToInitiative === false" x-transition>
+          <input type="text" x-model="overtimeForm.reasonNotLinkedToInitiative"
+            :required="overtimeForm.isLinkedToInitiative === false" placeholder="اكتب سبب عدم الارتباط بمبادرة للجمعية"
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] min-h-[52px]" />
+        </div>
+
+
+        <div class="pt-4 border-t border-slate-100 space-y-3">
+          <div class="pt-4 border-t border-slate-100 space-y-3">
+
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-3">
+              <input type="text" x-model="overtimeItemsTemplate.name" placeholder="اسم الموظف"
+                class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm focus:outline-none focus:border-[#007B9D]" />
+
+              <input type="text" x-model="overtimeItemsTemplate.detail" placeholder="بيان أو تفاصيل العمل الاضافي"
+                class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm focus:outline-none focus:border-[#007B9D]" />
+
+              <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 items-center">
+
+                <div class="relative">
+                  <input type="text" x-model="overtimeItemsTemplate.time" placeholder="ساعات العمل"
+                    class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3 text-center text-sm font-bold focus:outline-none focus:border-[#007B9D]" />
+                </div>
+
+                <div>
+                  <input type="number" step="0.01" x-model="overtimeItemsTemplate.amount" placeholder="المبلغ"
+                    class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3 text-center text-sm font-bold focus:outline-none focus:border-[#007B9D]" />
+                </div>
+
+                <div
+                  class="sm:col-span-2 flex items-center justify-between bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-1.5 px-3 min-h-[46px]">
+                  <div class="truncate max-w-[150px] sm:max-w-[200px]">
+                    <template x-if="isUploadingOvertimeFile">
+                      <span class="text-xs text-blue-600 font-bold animate-pulse">جاري الرفع... ⏳</span>
+                    </template>
+                    <template x-if="!isUploadingOvertimeFile && overtimeItemsTemplate.file">
+                      <a :href="overtimeItemsTemplate.file.url" target="_blank"
+                        class="text-xs text-green-600 font-bold hover:underline"
+                        x-text="'📎 ' + overtimeItemsTemplate.file.name"></a>
+                    </template>
+                    <template x-if="!isUploadingOvertimeFile && !overtimeItemsTemplate.file">
+                      <span class="text-xs text-slate-400 font-medium">لم يتم ارفاق الملف</span>
+                    </template>
+                  </div>
+
+                  <label
+                    class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-lg cursor-pointer transition select-none whitespace-nowrap">
+                    <span
+                      x-text="isUploadingOvertimeFile ? 'يرفع... 🔄' : (overtimeItemsTemplate.file ? 'تغيير 🔄' : 'ارفق الملف 📁')"></span>
+                    <input type="file" :disabled="isUploadingOvertimeFile" @change="handleOvertimeFiles($event)"
+                      class="hidden" />
+                  </label>
+                </div>
+              </div>
+
+              <div class="flex justify-center pt-1">
+                <button type="button" @click="addOvertimeItem()" :disabled="isUploadingOvertimeFile"
+                  class="bg-[#007B9D] text-white font-bold text-xs px-10 py-2.5 rounded-xl shadow-sm transition active:scale-95 disabled:opacity-50">إضافة</button>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto border border-slate-200/60 rounded-xl bg-white hidden sm:block">
+              <table class="w-full text-right text-xs border-collapse">
+                <thead>
+                  <tr class="bg-slate-50 text-slate-500 font-bold border-b border-slate-200/60">
+                    <th class="p-3 text-center w-12">م</th>
+                    <th class="p-3">بيان الصرف وتفاصيل الساعات للموظفين</th>
+                    <th class="p-3 text-center w-32">المبلغ</th>
+                    <th class="p-3 text-center w-40">الإجراء</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="(item, index) in overtimeForm.items" :key="index">
+                    <tr class="border-b border-slate-100 hover:bg-slate-50/50 text-slate-700">
+                      <td class="p-3 text-center font-bold text-slate-400" x-text="index + 1"></td>
+                      <td class="p-3 space-y-1">
+                        <div class="font-bold text-slate-800" x-text="item.name"></div>
+                        <div class="text-[11px] text-slate-500" x-text="item.detail"></div>
+                        <div class="flex items-center gap-3 text-[11px] text-blue-600 font-medium">
+                          <span x-show="item.time">⏱ <span x-text="item.time"></span></span>
+                          <!-- ربط اسم الملف برابطه السحابي للمشاهدة الفورية للمدقق -->
+                          <span x-show="item.file" class="text-green-600 font-bold">
+                            📎 <a :href="item.file ? item.file.url : '#'" target="_blank"
+                              class="hover:underline text-green-600" x-text="item.file ? item.file.name : ''"></a>
+                          </span>
+                        </div>
+                      </td>
+                      <td class="p-3 text-center font-bold text-blue-900"
+                        x-text="parseFloat(item.amount || 0).toFixed(2) + ' ر.س'"></td>
+                      <td class="p-3 text-center">
+                        <div class="flex items-center justify-center gap-1.5">
+                          <button type="button" @click="editOvertimeItem(index)"
+                            class="bg-amber-500 text-white text-[11px] font-bold px-3 py-1 rounded-md transition cursor-pointer">تعديل</button>
+                          <button type="button" @click="deleteOvertimeItem(index)"
+                            class="bg-red-600 text-white text-[11px] font-bold px-3 py-1 rounded-md transition cursor-pointer">حذف</button>
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
+                  <tr class="bg-blue-50/30 font-black text-slate-800">
+                    <td colspan="2" class="p-3 text-left pl-10">إجمالي المبلغ:</td>
+                    <td class="p-3 text-center text-[#007B9D] text-sm border-t border-slate-200"
+                      x-text="calculateOvertimeTotal().toFixed(2) + ' ر.س'"></td>
+                    <td></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="block sm:hidden space-y-2">
+              <template x-for="(item, index) in overtimeForm.items" :key="index">
+                <div class="bg-white p-4 rounded-xl border border-slate-200/70 space-y-2 shadow-sm text-right">
+                  <div class="flex justify-between items-start">
+                    <span class="bg-slate-100 text-slate-600 text-xs font-bold px-2 py-0.5 rounded"
+                      x-text="'#' + (index + 1)"></span>
+                    <div class="flex gap-1.5">
+                      <button type="button" @click="editOvertimeItem(index)"
+                        class="text-amber-600 text-xs font-bold bg-amber-50 px-2 py-0.5 rounded cursor-pointer">تعديل</button>
+                      <button type="button" @click="deleteOvertimeItem(index)"
+                        class="text-red-600 text-xs font-bold bg-red-50 px-2 py-0.5 rounded cursor-pointer">حذف</button>
+                    </div>
+                  </div>
+                  <div class="font-bold text-xs text-slate-800" x-text="item.name"></div>
+                  <div class="text-[11px] text-slate-600" x-text="item.detail"></div>
+                  <div class="flex flex-wrap items-center gap-3 text-[11px] pt-1 border-t border-slate-50">
+                    <span class="text-slate-500 font-bold"
+                      x-text="'المبلغ: ' + parseFloat(item.amount || 0).toFixed(2) + ' ر.س'"></span>
+                    <span x-show="item.time" class="text-slate-400" x-text="'⏱ ' + item.time"></span>
+                    <span x-show="item.file" class="text-green-600 font-bold truncate max-w-[150px]">
+                      📎 <a :href="item.file ? item.file.url : '#'" target="_blank"
+                        class="hover:underline text-green-600" x-text="item.file ? item.file.name : ''"></a>
+                    </span>
+                  </div>
+                </div>
+              </template>
+              <div
+                class="bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex items-center justify-between font-black text-xs">
+                <span class="text-slate-600">إجمالي المبلغ:</span>
+                <span class="text-[#007B9D] text-sm" x-text="calculateOvertimeTotal().toFixed(2) + ' ر.س'"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-4">
+          <button type="submit" :disabled="isSubmitting || isUploadingOvertimeFile || overtimeForm.items.length === 0"
+            class="w-full flex items-center justify-center bg-[#4285F4] hover:bg-[#3572E8] text-white font-bold py-4 rounded-xl shadow-md transition disabled:opacity-50 cursor-pointer text-sm sm:text-base min-h-[54px] sm:min-h-[58px] active:scale-[0.99]">
+            <span
+              x-text="isSubmitting ? 'جاري معالجة الملفات وإرسال طلب العمل الاضافي...' : 'إرسال طلب العمل الاضافي '"></span>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ============== استمارة طلب عام =============== -->
+    <div x-show="activeRequestType === 'general'"
+      class="bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.01)] p-5 sm:p-8 space-y-5">
+
+      <form @submit.prevent="submitGeneralRequest()" class="space-y-4 sm:space-y-5">
+
+        <!-- تاريخ الطلب -->
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">تاريخ الطلب</label>
+          <input type="date" x-model="generalForm.requestDate" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] text-right min-h-[52px]" />
+        </div>
+
+        <!--   الوظيفة الحالية -->
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">الوظيفة</label>
+          <input type="text" :value="employeePosition" x-model="generalForm.selectedPosition"
+            placeholder="اكتب مسمى الوظيفة" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D]"
+            readonly />
+        </div>
+
+        <!-- الإدارة المعنية بالطلب -->
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">الإدارة</label>
+          <select x-model="generalForm.selectedDept" @change="handleDeptChange()" required
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] min-h-[52px] cursor-pointer">
+            <option value="">اختر الإدارة المعنية بالطلب</option>
+            <template x-for="dept in departments">
+              <option :value="dept" x-text="dept"></option>
+            </template>
+          </select>
+        </div>
+
+        <!-- مبررات الطلب -->
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5 text-right">مبررات الطلب (السبب
+            التفصيلي)</label>
+          <textarea x-model="generalForm.justification" placeholder="اكتب مبررات وأسباب الطلب العام هنا..." required
+            rows="3"
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] resize-none"></textarea>
+        </div>
+
+        <div
+          class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#F4F6F8]/50 p-4 rounded-xl border border-slate-100">
+          <span class="text-xs sm:text-sm font-bold text-[#0A2540] text-right">هل الطلب العام مرتبط بمبادرة؟</span>
+          <div class="flex items-center gap-6 justify-end" dir="ltr">
+            <label
+              class="flex items-center gap-2 cursor-pointer font-medium text-sm text-slate-700 select-none"><span>نعم</span><input
+                type="radio" :value="true" x-model.boolean="generalForm.isLinkedToInitiative"
+                class="w-5 h-5 sm:w-4 sm:h-4 text-[#007B9D]" /></label>
+            <label
+              class="flex items-center gap-2 cursor-pointer font-medium text-sm text-slate-700 select-none"><span>لا</span><input
+                type="radio" :value="false" x-model.boolean="generalForm.isLinkedToInitiative"
+                class="w-5 h-5 sm:w-4 sm:h-4 text-[#007B9D]" /></label>
+          </div>
+        </div>
+
+        <div x-show="generalForm.isLinkedToInitiative === true" x-transition class="flex items-center gap-2 w-full">
+          <select x-model="generalForm.initiativeId" :required="generalForm.isLinkedToInitiative === true"
+            @change="updateGeneralTooltip()"
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-xs sm:text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] min-h-[52px]">
+            <option value="">اختر المبادرة المستهدفة للطلب العام</option>
+            <template x-for="init in filteredInitiatives" :key="init.id">
+              <option :value="init.id" x-text="init.name"></option>
+            </template>
+          </select>
+
+          <div class="relative" x-data="{ showTooltip: false }">
+            <button type="button" @click="showTooltip = !showTooltip"
+              class="w-11 h-11 rounded-xl bg-blue-50 border border-slate-100 text-[#007B9D] font-bold text-base flex items-center justify-center cursor-help shrink-0 shadow-sm min-h-[52px]">
+              ؟
+            </button>
+            <div x-show="showTooltip" @click.away="showTooltip = false" x-transition
+              class="absolute bottom-13 left-0 w-60 p-3 bg-[#0A2540] text-white text-[11px] rounded-xl shadow-xl z-50 text-right leading-relaxed"
+              x-text="generalInitiativeDesc || 'يرجى تحديد المبادرة أولاً لرؤية وصفها الشامل.'">
+            </div>
+          </div>
+        </div>
+
+        <div x-show="generalForm.isLinkedToInitiative === false" x-transition>
+          <input type="text" x-model="generalForm.reasonNotLinkedToInitiative"
+            :required="generalForm.isLinkedToInitiative === false" placeholder="اكتب سبب عدم الارتباط بمبادرة للجمعية"
+            class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm text-slate-700 focus:outline-none focus:border-[#007B9D] min-h-[52px]" />
+        </div>
+
+        <div class="pt-4 border-t border-slate-100 space-y-3">
+
+          <div class="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-3">
+            <input type="text" x-model="generalItemsTemplate.detail" placeholder="البيان أو تفاصيل الصرف"
+              class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3.5 text-sm focus:outline-none focus:border-[#007B9D]" />
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
+
+              <div>
+                <input type="number" step="0.01" x-model="generalItemsTemplate.amount" placeholder="المبلغ"
+                  class="w-full bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-3 text-center text-sm font-bold focus:outline-none focus:border-[#007B9D]" />
+              </div>
+
+              <div
+                class="sm:col-span-2 flex items-center justify-between bg-[#F4F6F8] border border-slate-200/60 rounded-xl p-1.5 px-3 min-h-[46px]">
+                <div class="truncate max-w-[150px] sm:max-w-[220px]">
+                  <template x-if="isUploadingGeneralFile">
+                    <span class="text-xs text-blue-600 font-bold animate-pulse">جاري الرفع سحابياً... ⏳</span>
+                  </template>
+                  <template x-if="!isUploadingGeneralFile && generalItemsTemplate.file">
+                    <a :href="generalItemsTemplate.file.url" target="_blank"
+                      class="text-xs text-green-600 font-bold hover:underline"
+                      x-text="'📎 ' + generalItemsTemplate.file.name"></a>
+                  </template>
+                  <template x-if="!isUploadingGeneralFile && !generalItemsTemplate.file">
+                    <span class="text-xs text-slate-400 font-medium">لم يتم ارفاق الملف</span>
+                  </template>
+                </div>
+
+                <label
+                  class="bg-[#007B9D] hover:bg-[#00607a] text-white text-xs font-bold px-4 py-2 rounded-lg cursor-pointer transition select-none whitespace-nowrap">
+                  <span
+                    x-text="isUploadingGeneralFile ? 'يرفع... 🔄' : (generalItemsTemplate.file ? 'تغيير 🔄' : 'ارفق الملف 📁')"></span>
+                  <input type="file" id="general_file_input" :disabled="isUploadingGeneralFile"
+                    @change="handleGeneralFiles($event)" class="hidden" />
+                </label>
+              </div>
+            </div>
+            <div class="flex justify-center pt-1">
+              <button type="button" @click="addGeneralItem()" :disabled="isUploadingGeneralFile"
+                class="bg-[#007B9D] text-white font-bold text-xs px-10 py-2.5 rounded-xl shadow-sm transition active:scale-95 disabled:opacity-50">إضافة</button>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto border border-slate-200/60 rounded-xl bg-white hidden sm:block">
+            <table class="w-full text-right text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-50 text-slate-500 font-bold border-b border-slate-200/60">
+                  <th class="p-3 text-center w-12">م</th>
+                  <th class="p-3">تفاصيل الطلب</th>
+                  <th class="p-3 text-center w-32">المبلغ</th>
+                  <th class="p-3 text-center w-40">الإجراء</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(item, index) in generalForm.items" :key="index">
+                  <tr class="border-b border-slate-100 hover:bg-slate-50/50 text-slate-700">
+                    <td class="p-3 text-center font-bold text-slate-400" x-text="index + 1"></td>
+                    <td class="p-3 space-y-1">
+                      <div class="text-[11px] text-slate-500" x-text="item.detail"></div>
+                      <div class="flex items-center gap-3 text-[11px] text-blue-600 font-medium">
+                        <!-- تحويل اسم الملف المرفق لرابط تصفح مباشر للمدقق السحابي -->
+                        <span x-show="item.file" class="text-green-600 font-bold">
+                          📎 <a :href="item.file ? item.file.url : '#'" target="_blank"
+                            class="hover:underline text-green-600" x-text="item.file ? item.file.name : ''"></a>
+                        </span>
+                      </div>
+                    </td>
+                    <td class="p-3 text-center font-bold text-blue-900"
+                      x-text="parseFloat(item.amount || 0).toFixed(2) + ' ر.س'"></td>
+                    <td class="p-3 text-center">
+                      <div class="flex items-center justify-center gap-1.5">
+                        <button type="button" @click="editGeneralItem(index)"
+                          class="bg-amber-500 text-white text-[11px] font-bold px-3 py-1 rounded-md transition cursor-pointer">تعديل</button>
+                        <button type="button" @click="deleteGeneralItem(index)"
+                          class="bg-red-600 text-white text-[11px] font-bold px-3 py-1 rounded-md transition cursor-pointer">حذف</button>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+                <tr class="bg-blue-50/30 font-black text-slate-800">
+                  <td colspan="2" class="p-3 text-left pl-10">إجمالي المبلغ:</td>
+                  <td class="p-3 text-center text-[#007B9D] text-sm border-t border-slate-200"
+                    x-text="calculateGeneralTotal().toFixed(2) + ' ر.س'"></td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="block sm:hidden space-y-2">
+            <template x-for="(item, index) in generalForm.items" :key="index">
+              <div class="bg-white p-4 rounded-xl border border-slate-200/70 space-y-2 shadow-sm text-right">
+                <div class="flex justify-between items-start">
+                  <span class="bg-slate-100 text-slate-600 text-xs font-bold px-2 py-0.5 rounded"
+                    x-text="'#' + (index + 1)"></span>
+                  <div class="flex gap-1.5">
+                    <button type="button" @click="editGeneralItem(index)"
+                      class="text-amber-600 text-xs font-bold bg-amber-50 px-2 py-0.5 rounded cursor-pointer">تعديل</button>
+                    <button type="button" @click="deleteGeneralItem(index)"
+                      class="text-red-600 text-xs font-bold bg-red-50 px-2 py-0.5 rounded cursor-pointer">حذف</button>
+                  </div>
+                </div>
+                <div class="text-[11px] text-slate-600" x-text="item.detail"></div>
+                <div class="flex flex-wrap items-center gap-3 text-[11px] pt-1 border-t border-slate-50">
+                  <span class="text-slate-500 font-bold"
+                    x-text="'المبلغ: ' + parseFloat(item.amount || 0).toFixed(2) + ' ر.س'"></span>
+                  <span x-show="item.file" class="text-green-600 font-bold truncate max-w-[150px]">
+                    📎 <a :href="item.file ? item.file.url : '#'" target="_blank" class="hover:underline text-green-600"
+                      x-text="item.file ? item.file.name : ''"></a>
+                  </span>
+                </div>
+              </div>
+            </template>
+            <div
+              class="bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex items-center justify-between font-black text-xs">
+              <span class="text-slate-600">إجمالي المبلغ:</span>
+              <span class="text-[#007B9D] text-sm" x-text="calculateGeneralTotal().toFixed(2) + ' ر.س'"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-4">
+          <button type="submit" :disabled="isSubmitting || isUploadingGeneralFile || generalForm.items.length === 0"
+            class="w-full flex items-center justify-center bg-[#4285F4] hover:bg-[#3572E8] text-white font-bold py-4 rounded-xl shadow-md transition disabled:opacity-50 cursor-pointer text-sm sm:text-base min-h-[54px] sm:min-h-[58px] active:scale-[0.99]">
+            <span x-text="isSubmitting ? 'جاري معالجة الملفات وإرسال الطلب العام...' : 'إرسال الطلب العام '"></span>
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+  </main>
+
+  <style>
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</body>
+
+</html>

@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>صفحة عرض المهام</title>
+
+  <link rel="icon" href="./src/images/ibtsmLogo.svg" type="image/svg+xml" />
+
+  <link rel="stylesheet" href="./dist/output.css" />
+
+  <script src="./node_modules/firebase/firebase-app-compat.js"></script>
+  <script src="./node_modules/firebase/firebase-auth-compat.js"></script>
+  <script src="./node_modules/firebase/firebase-firestore-compat.js"></script>
+
+  <script src="./src/js/firebase-config.js"></script>
+
+  <script src="./src/js/dashboard.js"></script>
+
+  <script defer src="./node_modules/alpinejs/dist/cdn.min.js"></script>
+
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&family=Noto+Nastaliq+Urdu:wght@400..700&family=Tajawal:wght@200;300;400;500;700;800;900&display=swap");
+
+    body {
+      font-family: "Tajawal", sans-serif;
+    }
+
+    [x-cloak] {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body class="bg-[#F8FAFC] flex items-center justify-center min-h-screen p-4 sm:p-6" x-data="dashboardComponent" x-cloak
+  x-show="!isCheckingAuth">
+  <div
+    class="w-full max-w-[540px] bg-white rounded-[24px] sm:rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.02)] border border-slate-100 p-5 sm:p-8 text-center">
+    <img src="./src/images/ibtsmLogo.png" alt="شعار جمعية ابتسم"
+      class="w-auto h-20 sm:h-24 mx-auto object-contain mb-4 sm:mb-6" />
+    <h2 class="text-lg sm:text-xl font-bold text-[#0A2540] mb-1.5 px-2" x-text="'أهلاً بك، ' + employeeName"></h2>
+    <p class="text-[#007B9D] text-xs sm:text-sm font-medium mb-6 sm:mb-8">
+      يرجى اختيار الصفحة المناسبة لمهمتك الحالية
+    </p>
+
+    <div class="space-y-3.5">
+
+      <template x-if="userRoles.includes('employee')">
+        <a href="./requests.html"
+          class="w-full flex items-center justify-between p-4 sm:p-5 bg-[#F4F6F8] active:bg-[#EAEFF4] border border-slate-200/40 rounded-2xl transition duration-150 group text-right">
+          <div class="flex items-center gap-3 sm:gap-4">
+            <div
+              class="w-10 h-10 sm:w-12 sm:h-12 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 text-lg sm:text-xl shrink-0">
+              📋
+            </div>
+            <div>
+              <h4 class="font-bold text-[#0A2540] text-sm sm:text-base">
+                صفحة الطلبات المالية
+              </h4>
+              <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5 leading-tight">
+                ارسال الطلب المالي
+              </p>
+            </div>
+          </div>
+          <span class="text-slate-400 font-bold text-sm sm:text-base pr-2">←</span>
+        </a>
+      </template>
+
+      <template x-if="userRoles.includes('auditor')">
+        <a href="./auditor.html"
+          class="w-full flex items-center justify-between p-4 sm:p-5 bg-[#F4F6F8] active:bg-[#EAEFF4] border border-slate-200/40 rounded-2xl transition duration-150 group text-right">
+          <div class="flex items-center gap-3 sm:gap-4">
+            <div
+              class="w-10 h-10 sm:w-12 sm:h-12 bg-green-50 rounded-xl flex items-center justify-center text-green-600 text-lg sm:text-xl shrink-0">
+              ✍️
+            </div>
+            <div>
+              <h4 class="font-bold text-[#0A2540] text-sm sm:text-base">
+                صفحة المدقق
+              </h4>
+              <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5 leading-tight">
+                مراجعة الطلبات الواردة وإرفاق سند التحويل
+              </p>
+            </div>
+          </div>
+          <span class="text-slate-400 font-bold text-sm sm:text-base pr-2">←</span>
+        </a>
+      </template>
+
+      <template x-if="userRoles.includes('manager')">
+        <a href="./manager.html"
+          class="w-full flex items-center justify-between p-4 sm:p-5 bg-[#F4F6F8] active:bg-[#EAEFF4] border border-slate-200/40 rounded-2xl transition duration-150 group text-right">
+          <div class="flex items-center gap-3 sm:gap-4">
+            <div
+              class="w-10 h-10 sm:w-12 sm:h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 text-lg sm:text-xl shrink-0">
+              👥
+            </div>
+            <div>
+              <h4 class="font-bold text-[#0A2540] text-sm sm:text-base">
+                صفحة مدير الدعم المؤسسي
+              </h4>
+              <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5 leading-tight">
+                الاعتماد الأول على الطلبات المالية
+              </p>
+            </div>
+          </div>
+          <span class="text-slate-400 font-bold text-sm sm:text-base pr-2">←</span>
+        </a>
+      </template>
+
+      <template x-if="userRoles.includes('ceo')">
+        <a href="./ceo.html"
+          class="w-full flex items-center justify-between p-4 sm:p-5 bg-[#F4F6F8] active:bg-[#EAEFF4] border border-slate-200/40 rounded-2xl transition duration-150 group text-right">
+          <div class="flex items-center gap-3 sm:gap-4">
+            <div
+              class="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 text-lg sm:text-xl shrink-0">
+              👔
+            </div>
+            <div>
+              <h4 class="font-bold text-[#0A2540] text-sm sm:text-base">
+                صفحة الرئيس التنفيذي
+              </h4>
+              <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5 leading-tight">
+                الاعتماد الثاني على الطلبات المالية
+              </p>
+            </div>
+          </div>
+          <span class="text-slate-400 font-bold text-sm sm:text-base pr-2">←</span>
+        </a>
+      </template>
+
+      <template x-if="userRoles.includes('chairman')">
+        <a href="./chairman.html"
+          class="w-full flex items-center justify-between p-4 sm:p-5 bg-[#F4F6F8] active:bg-[#EAEFF4] border border-slate-200/40 rounded-2xl transition duration-150 group text-right">
+          <div class="flex items-center gap-3 sm:gap-4">
+            <div
+              class="w-10 h-10 sm:w-12 sm:h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 text-lg sm:text-xl shrink-0">
+              👑
+            </div>
+            <div>
+              <h4 class="font-bold text-[#0A2540] text-sm sm:text-base">
+                صفحة رئيس مجلس الإدارة
+              </h4>
+              <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5 leading-tight">
+                الاعتماد النهائي على الطلبات المالية
+              </p>
+            </div>
+          </div>
+          <span class="text-slate-400 font-bold text-sm sm:text-base pr-2">←</span>
+        </a>
+      </template>
+
+
+      <template x-if="userRoles.includes('accountant')">
+        <a href="./accountant.html"
+          class="w-full flex items-center justify-between p-4 sm:p-5 bg-[#F4F6F8] active:bg-[#EAEFF4] border border-slate-200/40 rounded-2xl transition duration-150 group text-right">
+          <div class="flex items-center gap-3 sm:gap-4">
+            <div
+              class="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 text-lg sm:text-xl shrink-0">
+              💰
+            </div>
+            <div>
+              <h4 class="font-bold text-[#0A2540] text-sm sm:text-base">
+                صفحة المحاسب
+              </h4>
+              <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5 leading-tight">
+                المطابقة مع الميزانية والترصيد في المالية وأرشفة الطلبات المالية
+              </p>
+            </div>
+          </div>
+          <span class="text-slate-400 font-bold text-sm sm:text-base pr-2">←</span>
+        </a>
+      </template>
+
+      <template x-if="userRoles.includes('admin')">
+        <a href="./admin.html"
+          class="w-full flex items-center justify-between p-4 sm:p-5 bg-[#F4F6F8] active:bg-[#EAEFF4] border border-slate-200/40 rounded-2xl transition duration-150 group text-right">
+          <div class="flex items-center gap-3 sm:gap-4">
+            <div
+              class="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 text-lg sm:text-xl shrink-0">
+              ⚙️
+            </div>
+            <div>
+              <h4 class="font-bold text-[#0A2540] text-sm sm:text-base">
+                صفحة الصلاحيات والتحكم بالنظام
+              </h4>
+              <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5 leading-tight">
+                إدارة المستخدمين وإضافة المبادرات ومنح الصلاحيات
+              </p>
+            </div>
+          </div>
+          <span class="text-slate-400 font-bold text-sm sm:text-base pr-2">←</span>
+        </a>
+      </template>
+    </div>
+
+    <button @click="handleLogout()"
+      class="mt-8 text-xs sm:text-sm font-bold text-red-500 hover:text-red-600 active:scale-95 transition cursor-pointer">
+      تسجيل خروج من الحساب
+    </button>
+  </div>
+</body>
+
+</html>

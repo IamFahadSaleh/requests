@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>صفحة رئيس مجلس الإدارة</title>
+
+  <link rel="icon" href="./src/images/ibtsmLogo.svg" type="image/svg+xml" />
+
+
+  <link rel="stylesheet" href="./dist/output.css" />
+
+  <script src="./node_modules/firebase/firebase-app-compat.js"></script>
+  <script src="./node_modules/firebase/firebase-auth-compat.js"></script>
+  <script src="./node_modules/firebase/firebase-firestore-compat.js"></script>
+
+  <script src="./src/js/firebase-config.js"></script>
+  <script src="./src/js/idle-tracker.js"></script>
+
+  <script src="./src/js/chairman.js"></script>
+
+  <script defer src="./node_modules/alpinejs/dist/cdn.min.js"></script>
+
+
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&family=Noto+Nastaliq+Urdu:wght@400..700&family=Tajawal:wght@200;300;400;500;700;800;900&display=swap");
+
+    body {
+      font-family: "Tajawal", sans-serif;
+    }
+
+    [x-cloak] {
+      display: none !important;
+    }
+
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 12mm 15mm;
+      }
+
+      body {
+        background-color: #ffffff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      /* إخفاء العناصر العامة وعناصر النظام */
+      .no-print {
+        display: none !important;
+      }
+
+      /* إخفاء إجباري لجميع استمارات الطباعة بشكل افتراضي */
+      .print-container {
+        display: none !important;
+      }
+
+      /* إظهار فقط وحصرياً الاستمارة التي تحمل هذا الكلاس النشط */
+      .print-active {
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+        box-shadow: none !important;
+        border: none !important;
+      }
+
+      .print-space-tight>*+* {
+        margin-top: 8px !important;
+      }
+
+      .avoid-break {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+
+      .print-p-tight {
+        padding: 4px 8px !important;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-[#F8FAFC] text-slate-800" x-data="chairmanComponent" x-cloak x-show="!isCheckingAuth">
+ <!-- هيدر علوي متجاوب ومخصص للرئيس التنفيذي -->
+  <header class="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-2 sm:gap-4 min-w-0">
+        <img src="./src/images/ibtsmLogo.png" alt="شعار جمعية ابتسم"
+          class="h-10 sm:h-14 w-auto object-contain shrink-0" />
+        <div class="h-6 w-px bg-slate-200 shrink-0"></div>
+        <div class="min-w-0">
+          <h1 class="text-sm sm:text-xl font-bold text-[#0A2540] truncate">
+            صفحة الرئيس التنفيذي
+          </h1>
+          <p class="text-[10px] sm:text-xs text-slate-400 font-medium truncate mt-0.5" x-text="'مرحباً، ' + chairmanName">
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <template x-if="userRoles.length > 1">
+          <a href="./dashboard.html"
+            class="bg-amber-50 active:bg-amber-100 text-amber-700 px-2.5 sm:px-4 py-2 rounded-xl text-[10px] sm:text-xs font-bold border border-amber-100 transition">صفحة
+            المهام
+            📋</a>
+        </template>
+
+        <template x-else>
+          <a href="./requests.html"
+            class="bg-green-50 active:bg-green-100 text-green-700 px-2.5 sm:px-4 py-2 rounded-xl text-[10px] sm:text-xs font-bold border border-green-100 transition whitespace-nowrap">الطلبات
+            📋</a>
+        </template>
+        <button @click="handleLogout()"
+          class="bg-red-50 active:bg-red-100 text-red-600 px-2.5 sm:px-4 py-2 rounded-xl text-[10px] sm:text-xs font-bold transition cursor-pointer">
+          خروج
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 py-6 sm:py-10 space-y-6" x-data="{ currentSubTab: 'pending' }">
+
+    <div class="flex border-b border-slate-200 gap-4 overflow-x-auto whitespace-nowrap mb-4">
+      <button @click="currentSubTab = 'pending'"
+        :class="currentSubTab === 'pending' ? 'border-[#007B9D] text-[#007B9D] font-bold' : 'border-transparent text-slate-400'"
+        class="pb-3 px-1 border-b-2 text-xs sm:text-sm cursor-pointer flex items-center gap-1.5 transition-all">
+        <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        الطلبات الواردة
+        <span class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+          x-text="requests.length">0</span>
+      </button>
+    </div>
+
+    <!-- ================= الطلبات الواردة للتدقيق ================= -->
+    <div x-show="currentSubTab === 'pending'" class="space-y-5">
+      <template x-if="requests.length === 0">
+        <div class="bg-white rounded-2xl border border-slate-100 p-10 text-center text-slate-400 shadow-sm">
+          <p class="text-sm sm:text-base font-medium">لا توجد طلبات جديدة حالياً</p>
+        </div>
+      </template>
+      <template x-if="requests.length > 0">
+        <div x-show="currentView === 'table'" class="no-print">
+
+          <div class="block md:hidden space-y-4">
+            <template x-for="(request, index) in requests" :key="request.id">
+              <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                <div class="flex justify-between items-center border-b border-gray-100 pb-2 mb-3">
+                  <span class="text-xs font-bold text-gray-400" x-text="'#' + (index + 1)"></span>
+                  <span class="bg-green-50 text-green-700 px-2 py-1 rounded text-xs font-semibold"
+                    x-text="{ loan: 'سلفة', petty: 'عهدة', purchase: 'شراء', general: 'عام' }[request.requestType] || request.requestType"></span>
+                </div>
+
+                <div class="space-y-2 text-sm text-gray-700">
+                  <div class="flex justify-between"><span class="text-gray-400">رقم الطلب:</span> <span
+                      class="font-semibold" x-text="request.requestNumber"></span></div>
+                  <div class="flex justify-between"><span class="text-gray-400">تاريخ الطلب:</span> <span
+                      x-text="request.requestDate"></span></div>
+                  <div class="flex justify-between"><span class="text-gray-400">المرسل:</span> <span class="font-medium"
+                      x-text="request.applicantName"></span></div>
+                  <div class="flex justify-between"><span class="text-gray-400">الطلب من:</span> <span
+                      class="text-gray-500" x-text="request.selectedDept"></span></div>
+                </div>
+                <div class="grid grid-cols-1 gap-2 mt-4 pt-3 border-t border-gray-100">
+                  <button @click="handlePreview(request)"
+                    class="bg-[#00b4d8] hover:bg-[#0096c7] text-white py-2 rounded-lg font-semibold text-center text-xs transition">معاينة</button>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <div class="hidden md:block overflow-x-auto bg-white rounded-2xl shadow-sm border border-gray-100">
+            <table class="w-full text-right border-collapse">
+              <thead>
+                <tr class="bg-[#e4edd9] text-gray-700 border-b border-gray-200">
+                  <th class="p-4 text-center w-12 font-bold">#</th>
+                  <th class="p-4 font-bold">رقم الطلب</th>
+                  <th class="p-4 font-bold">تاريخ الطلب</th>
+                  <th class="p-4 font-bold">نوع الطلب</th>
+                  <th class="p-4 font-bold">المرسل</th>
+                  <th class="p-4 font-bold">الطلب من</th>
+                  <th class="p-4 text-center font-bold w-44">الإجراء</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(request, index) in requests" :key="request.id">
+                  <tr class="border-b border-gray-100 hover:bg-gray-50/80 transition duration-150">
+                    <td class="p-4 text-gray-500 text-center" x-text="index + 1"></td>
+                    <td class="p-4 text-gray-600 font-semibold text-xs" x-text="request.requestNumber"></td>
+                    <td class="p-4 text-gray-500" x-text="request.requestDate"></td>
+                    <td class="p-4 text-gray-700 font-medium"><span class="bg-blue-50 text-blue-700 px-2 rounded"
+                        x-text="{ loan: 'سلفة', petty: 'عهدة', purchase: 'شراء', general: 'عام' }[request.requestType] || request.requestType"></span>
+                    </td>
+                    <td class="p-4 text-gray-700 text-sm" x-text="request.applicantName"></td>
+                    <td class="p-4 text-gray-500 text-xs" x-text="request.selectedDept"></td>
+                    <td class="p-4">
+                      <div class="flex items-center justify-center -space-x-px space-x-reverse">
+                        <button @click="handlePreview(request)"
+                          class="bg-[#00b4d8] hover:bg-[#0096c7] text-white px-3 py-1.5 rounded-md text-xs font-bold transition shadow-sm">معاينة</button>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
+
+
+      <!-- ==================== استمارة تفاصيل وطباعة السلفة ==================== -->
+      <div x-show="currentView === 'preview_loan'" x-transition
+        class="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden print-container"
+        :class="currentView === 'preview_loan' ? 'print-active' : ''">
+
+        <div class="p-4 border-b border-gray-300 flex justify-between items-center bg-white">
+          <div class="text-right">
+            <h1 class="text-xl font-bold text-[#1d3557]">جمعية ابتسم</h1>
+            <p class="text-[10px] text-gray-500">لخدمات طب الأسنان التطوعية</p>
+          </div>
+          <div class="text-center">
+            <h2 class="text-xl font-bold text-gray-800 tracking-wide">استمارة الطلبات المالية</h2>
+          </div>
+          <img src="./src/images/ibtsmLogo.png" alt="شعار جمعية ابتسم"
+            class="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center border border-dashed border-gray-300 text-[10px] text-gray-400 font-bold select-none" />
+        </div>
+
+        <div class="bg-gray-50 p-3 flex justify-end items-center border-b border-gray-200 no-print">
+          <button @click="currentView = 'table'"
+            class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition">
+            ← عودة للجدول الرئيسي
+          </button>
+        </div>
+
+        <div class="p-4 md:p-6 space-y-6 bg-white">
+          <div class="border border-gray-300 rounded-xl overflow-hidden text-sm divide-y divide-gray-300">
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300 text">
+                نوع الطلب:</div>
+              <div class="p-3 col-span-2 md:col-span-3 text-gray-700"
+                x-text="{ loan: 'سلفة', petty: 'عهدة', purchase: 'شراء', general: 'عام' }[selectedrequest?.requestType] || selectedrequest?.requestType">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300">رقم
+                الطلب:</div>
+              <div class="p-3 col-span-2 md:col-span-3 font-mono text-gray-700" x-text="selectedrequest?.requestNumber">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300">تاريخ
+                الطلب:</div>
+              <div class="p-3 col-span-2 md:col-span-3 text-gray-700" x-text="selectedrequest?.requestDate">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300">صاحب
+                الطلب:</div>
+              <div class="p-3 col-span-2 md:col-span-3 font-medium text-gray-900"
+                x-text="selectedrequest?.applicantName"></div>
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300">
+                الوظيفة:</div>
+              <div class="p-3 col-span-2 md:col-span-3 text-gray-700" x-text="selectedrequest?.position"></div>
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300">
+                الطلب من:</div>
+              <div class="p-3 col-span-2 md:col-span-3 text-gray-700" x-text="selectedrequest?.selectedDept"></div>
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300">مبررات
+                الطلب:</div>
+              <div class="p-3 col-span-2 md:col-span-3 text-gray-700" x-text="selectedrequest?.justification"></div>
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300">مبلغ
+                الطلب:</div>
+              <div class="p-3 col-span-2 md:col-span-3 font-bold text-gray-800"
+                x-text="selectedrequest?.amount + 'ريال'"></div>
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-4">
+              <div class="bg-gray-50/80 p-3 font-bold border-l border-gray-300">هل
+                توجد سلف سابقة لم تسدد؟</div>
+              <div class="p-3 col-span-2 md:col-span-3 text-gray-700"
+                x-text="selectedrequest?.hasOutstandingLoans ? 'نعم' : 'لا'"></div>
+            </div>
+          </div>
+
+          <div class="text-[11px] text-gray-400 font-bold space-y-1">
+            <template x-if="selectedrequest?.approval.auditor === true">
+              <div>المدقق (معتمد)</div>
+            </template>
+            <template x-if="selectedrequest?.approval.accountant === true">
+              <div>المحاسب (معتمد)</div>
+            </template>
+          </div>
+
+          <div class="grid grid-cols-3 gap-4 pt-4 text-center text-xs border-t border-gray-200 avoid-break">
+
+            <div class="flex flex-col justify-between h-28 p-2 rounded-lg border border-gray-100 transition-colors"
+              :class="selectedrequest?.approval?.manager === true ? 'bg-white' : 'bg-gray-50/60'">
+              <p class="text-gray-500 font-semibold text-[11px]">موافقة إدارة الدعم المؤسسي</p>
+
+              <div class="py-1 flex items-center justify-center h-12 relative">
+                <template x-if="selectedrequest?.approval?.manager === true">
+                  <img src="src/images/manager.png" alt="توقيع المدير"
+                    class="h-full object-contain mix-blend-multiply brightness-110 contrast-125" />
+                </template>
+                <template x-if="!selectedrequest?.approval?.manager">
+                  <div class="text-gray-300 select-none text-[9px] italic">(بانتظار الاعتماد)</div>
+                </template>
+              </div>
+
+              <p class="font-bold text-gray-800 text-[11px]">أ. عبدالرحمن بن طلال الأحمدي</p>
+            </div>
+
+            <div class="flex flex-col justify-between h-28 p-2 rounded-lg border border-gray-100 transition-colors"
+              :class="selectedrequest?.approval?.ceo === true ? 'bg-white' : 'bg-gray-50/60'">
+              <p class="text-gray-500 font-semibold text-[11px]">موافقة الرئيس التنفيذي</p>
+
+              <div class="py-1 flex items-center justify-center h-12 relative">
+                <template x-if="selectedrequest?.approval?.ceo === true">
+                  <img src="src/images/ceo.png" alt="توقيع الرئيس التنفيذي"
+                    class="h-full object-contain mix-blend-multiply brightness-150 contrast-200 grayscale" />
+                </template>
+                <template x-if="!selectedrequest?.approval?.ceo">
+                  <div class="text-gray-300 select-none text-[9px] italic">(بانتظار الاعتماد)</div>
+                </template>
+              </div>
+
+              <p class="font-bold text-gray-800 text-[11px]">أ. عبدالعزيز بن صالح فتني</p>
+            </div>
+
+            <!-- كرت موافقة رئيس مجلس الإدارة (Chairman) -->
+            <div class="flex flex-col justify-between h-28 p-2 rounded-lg border border-gray-100 transition-colors"
+              :class="selectedrequest?.approval?.chairman === true ? 'bg-white' : 'bg-gray-50/60'">
+              <p class="text-gray-500 font-semibold text-[11px]">موافقة رئيس مجلس الإدارة</p>
+
+              <div class="py-1 flex items-center justify-center h-12 relative">
+                <template x-if="selectedrequest?.approval?.chairman === true">
+                  <img src="src/images/chairman.png" alt="توقيع رئيس مجلس الإدارة"
+                    class="h-full object-contain mix-blend-darken contrast-125" />
+                </template>
+                <template x-if="!selectedrequest?.approval?.chairman">
+                  <div class="text-gray-300 select-none text-[9px] italic">(بانتظار الاعتماد)</div>
+                </template>
+              </div>
+
+              <p class="font-bold text-gray-800 text-[11px]">د. أيمن بن محمد نوح</p>
+            </div>
+          </div>
+
+        </div>
+
+
+        <div class="p-4 md:p-6 no-print">
+          <input type="text" x-model="note" placeholder="كتابة سبب اعتماد أو ارجاع أو رفض الطلب"
+            class="w-full p-3 border border-gray-300 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-green-500 placeholder-gray-400">
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 pb-6 px-6 font-bold text-sm no-print">
+          <button @click="approveLoanRequest(selectedrequest)" :disabled="isApproveSubmitting"
+            class=" text-center text-xs sm:text-sm font-bold text-white bg-[#007B9D] py-3 rounded-xl disabled:opacity-40 transition-colors shadow-sm order-1 px-4 cursor-pointer">
+            <span x-text="isApproveSubmitting ? 'جاري إرسال الطلب...' : 'اعتماد الطلب'"></span>
+          </button>
+          <button @click="returnLoanRequest(selectedrequest)" :disabled="isReturnSubmitting"
+            class="text-center text-xs sm:text-sm font-bold text-white bg-yellow-600 hover:bg-yellow-700 active:bg-yellow-800 py-3 rounded-xl disabled:opacity-40 transition-colors shadow-sm order-2 px-4 cursor-pointer">
+            <span x-text="isReturnSubmitting ? 'جاري إرسال الطلب...' : 'ارجاع الطلب'"></span>
+          </button>
+          <button @click="rejectLoanRequest(selectedrequest)" :disabled="isRejectSubmitting"
+            class="text-center text-xs sm:text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 py-3 rounded-xl disabled:opacity-40 transition-colors shadow-sm order-3 px-4 cursor-pointer">
+            <span x-text="isRejectSubmitting ? 'جاري إرسال الطلب...' : 'رفض الطلب'"></span>
+          </button>
+        </div>
+
+        <div class="p-4 avoid-break">
+          <p class="text-[11px] font-bold text-gray-600 mb-1">مسارات الطلب:</p>
+          <div class="overflow-hidden border border-gray-200 rounded-lg text-[11px]">
+            <table class="w-full text-right">
+              <thead class="bg-gray-50 text-gray-500 border-b border-gray-200">
+                <tr>
+                  <th class="p-1.5 text-center w-8">#</th>
+                  <th class="p-1.5 w-20">التاريخ</th>
+                  <th class="p-1.5 w-20">حالة الطلب</th>
+                  <th class="p-1.5 w-50">المعتمد</th>
+                  <th class="p-1.5">الملاحظات</th>
+                </tr>
+              </thead>
+              <tbody class="text-gray-700 divide-y divide-gray-100">
+                <template x-for="(note, index) in selectedrequest?.timeline" :key="index + 1">
+                  <tr>
+                    <td class="p-1.5 text-center text-gray-400" x-text="index + 1"></td>
+                    <td class="p-1.5 font-medium"
+                      x-text="note.timestamp ? (note.timestamp.toDate ? note.timestamp.toDate() : new Date(note.timestamp)).toISOString().split('T')[0] : ''">
+                    </td>
+                    <td class="p-1.5 font-medium" x-text="note.action"></td>
+                    <td class="p-1.5 font-medium" x-text="note.userName"></td>
+                    <td class="p-1.5 text-red-600" x-text="note.note"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+
+  </main>
+</body>
+
+</html>
